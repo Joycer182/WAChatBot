@@ -1,0 +1,28 @@
+# Variables de entorno - ¡NUNCA subir a Git!
+.env
+
+# Archivo excel con la informacion de los precios.
+TablaProductos.xlsx
+
+# Dependencias
+/node_modules
+
+# Archivos de sesión de WhatsApp - ¡MUY IMPORTANTE no subir!
+wschatbot-session/
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Archivos generados por el bot en tiempo de ejecución
+/src/logs
+/src/conversations
+/src/client_data.json
+/src/bot_stats.json
+/src/vendedores.json
+
+# Archivos de sistema operativo y editores
+.DS_Store
+.vscode/
+
+# Mantener la carpeta de imágenes de productos, pero ignorar todo su contenido
+/src/product_images/*
+!/src/product_images/.gitkeep
