@@ -229,7 +229,6 @@ class CommandManager {
 *Comandos de productos:*
 */precio [código]* - Información y cotización de producto(s)
 
-*/preciog [código]* - Información y cotización de producto(s) con precio general
 */buscar [término]* - Buscar productos específicos según un término
 
 *Ejemplos:*
