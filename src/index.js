@@ -221,6 +221,11 @@ client.on('disconnected', (reason) => {
 
 // Manejo de mensajes
 client.on('message', async (message) => {
+    // Ignorar mensajes de estado
+    if (message.isStatus) {
+        return;
+    }
+
     try {
         // Ignorar mensajes que el bot acaba de enviar a un vendedor
         if (sentMessagesToVendors.has(message.id._serialized)) {
