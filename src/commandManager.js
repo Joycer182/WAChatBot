@@ -567,40 +567,8 @@ Se permiten máximo 20 productos para la cotización rápida.
 Si no se indica la cantidad, se asume que es 1.`;
         }
 
-        // Si hay más de un argumento, o el argumento contiene comas, es una cotización múltiple.
-        const isMultiQuote = args.length > 1 || args.some(arg => arg.includes(','));
-        if (isMultiQuote) {
-            return this._handleMultiProductQuote(args, contact, null); // Usar el tipo de cliente del contacto
-        }
-
-        const codigo = args[0];
-        const product = this.productManager.getProductByCode(codigo);
-        const clientType = this.getClientType(contact);
-
-        if (!product) {
-            return `❌ *Producto no encontrado*
-
-No se encontró ningún producto con el código: *${codigo}*
-
-*Sugerencias:*
-• Verifica el código
-• Usa /buscar para encontrar productos
-• Usa /categorias para ver las categorías de los productos disponibles`;
-        }
-
-        this._incrementQuoteCount('codigoQuotes'); // Contar como cotización de tipo 'codigo'
-
-        const productInfo = this.productManager.getProductInfo(product, clientType);
-        
-        return `📦 *Información del Producto*
-
-*Código:* ${productInfo.codigo}
-*Descripción:* ${productInfo.descripcion}
-*Precio (${clientType}):* ${productInfo.precio}
-
-Los Precios *NO INCLUYEN IVA*
-
-Usamos la tasa de Cambio del *BCV*`;
+        // Se delega toda la lógica de cotización a _handleMultiProductQuote
+        return this._handleMultiProductQuote(args, contact, null);
     }
 
     // Comando de precio general
@@ -608,7 +576,7 @@ Usamos la tasa de Cambio del *BCV*`;
         const clientTypeGeneral = this.clientTypes.GENERAL;
 
         if (args.length === 0) {
-            return `🔍 *Consulta de Precios (Precio General)*
+            return `🔍 *Consulta de Precios*
 
 Para consultar el precio general de un producto, escribe:
 /preciog *Código Producto*
@@ -635,29 +603,8 @@ Se permiten máximo 20 productos para la cotización rápida.
 Si no se indica la cantidad, se asume que es 1.`;
         }
 
-        // Si hay más de un argumento, o el argumento contiene comas, es una cotización múltiple.
-        const isMultiQuote = args.length > 1 || args.some(arg => arg.includes(','));
-        if (isMultiQuote) {
-            // Forzar el tipo de cliente a 'general'
-            return this._handleMultiProductQuote(args, contact, clientTypeGeneral);
-        }
-
-        const codigo = args[0];
-        const product = this.productManager.getProductByCode(codigo);
-
-        if (!product) {
-            return `❌ *Producto no encontrado*
-
-No se encontró ningún producto con el código: *${codigo}*`;
-        }
-
-        const productInfo = this.productManager.getProductInfo(product, clientTypeGeneral);
-        
-        return `📦 *Información del Producto (Precio General)*
-
-*Código:* ${productInfo.codigo}
-*Descripción:* ${productInfo.descripcion}
-*Precio (general):* ${productInfo.precio}`;
+        // Se delega toda la lógica de cotización a _handleMultiProductQuote, forzando el tipo de cliente a 'general'
+        return this._handleMultiProductQuote(args, contact, clientTypeGeneral);
     }
 
     // Comando de precios
@@ -819,66 +766,15 @@ Te notificaremos tan pronto como sea procesada.`;
 
         // Restringir acceso a tiendas e instaladores
         if (clientType !== this.clientTypes.TIENDA && clientType !== this.clientTypes.INSTALADOR) {
-            return `❌ *Acceso Denegado*
-
-El comando /divisas NO está disponible para usted.`;
+            return `❌ *Acceso Denegado*\n\nEl comando /divisas NO está disponible para usted.`;
         }
 
         if (args.length === 0) {
-            return `💱 *Consulta de Precios en Divisas*
-
-Este comando muestra el precio base de un producto.
-
-Para consultar el precio de un producto específico, escribe:
-/divisas *Código Producto*
-
-*Ejemplo:* /divisas *11050*
-
-
-Para cotizaciones rápidas, escribe:
-/divisas *CódigoProducto1, cantidad, CódigoProductoN, cantidad*
-
-*Ejemplo:* /divisas *11050, 10000, 3, 10050, 2*
-
-También  puedes hacer la misma consulta de la siguiente manera:
-/divisas *CódigoProducto1 cantidad CódigoProductoN cantidad*
-
-*Ejemplo:* /divisas *11050 10000 3 10050 2*
-
-*Para enviar la cotización a un vendedor:*
-Después de hacer tu cotización, usa el comando: 
-/enviar *Nombre del Vendedor*
-
-*NOTAS:*
-Se permiten máximo 20 productos para la cotización rápida.
-Si no se indica la cantidad, se asume que es 1.`;
+            return `💱 *Consulta de Precios en Divisas*\n\nEste comando muestra el precio en divisas de un producto.\n\nPara consultar el precio de un producto específico, escribe:\n/divisas *Código Producto*\n\n*Ejemplo:* /divisas *11050*\n\n\nPara cotizaciones rápidas, escribe:\n/divisas *CódigoProducto1, cantidad, CódigoProductoN, cantidad*\n\n*Ejemplo:* /divisas *11050, 10000, 3, 10050, 2*\n\nTambién  puedes hacer la misma consulta de la siguiente manera:\n/divisas *CódigoProducto1 cantidad CódigoProductoN cantidad*\n\n*Ejemplo:* /divisas *11050 10000 3 10050 2*\n\n*Para enviar la cotización a un vendedor:*\nDespués de hacer tu cotización, usa el comando: \n/enviar *Nombre del Vendedor*\n\n*NOTAS:*\nSe permiten máximo 20 productos para la cotización rápida.\nSi no se indica la cantidad, se asume que es 1.`;
         }
 
-        const isMultiQuote = args.length > 1 || args.some(arg => arg.includes(','));
-        if (isMultiQuote) { // No se fuerza el tipo de cliente aquí, se usa el del contacto
-            return this._handleMultiDivisaQuote(args, contact, null); 
-        }
-
-        const codigo = args[0];
-        const product = this.productManager.getProductByCode(codigo);
-
-        if (!product) {
-            return `❌ *Producto no encontrado*
-
-No se encontró ningún producto con el código: *${codigo}*`;
-        }
-
-        this._incrementQuoteCount('divisasQuotes'); // Contar como cotización de tipo 'divisas'
-
-        const rawPrice = this.productManager.getRawFormattedPrice(product, clientType);
-
-        return `💱 *Precio Especial*
-
-*Código:* ${product.codigo}
-*Descripción:* ${product.descripcion}
-*Precio Especial (${clientType}):* *${rawPrice}*
-
-Los Precios *NO INCLUYEN IVA*`;
+        // Se delega toda la lógica de cotización a _handleMultiDivisaQuote
+        return this._handleMultiDivisaQuote(args, contact, null);
     }
 
     // Comando para enviar cotización a un vendedor
