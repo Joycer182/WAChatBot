@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class CommandManager {
-    constructor(productManager, client) {
+    constructor(productManager, client, vendedoresFilePath) {
         this.commands = new Map();
         this.productManager = productManager; // Usar la instancia pasada
         this.client = client; // Guardar la instancia del cliente de WhatsApp
@@ -17,7 +17,7 @@ class CommandManager {
         this.clientStates = this._loadClientStates(); // Carga los estados desde el archivo
         this.statsFilePath = path.join(__dirname, 'bot_stats.json');
         this.botStats = this._loadBotStats(); // Carga las estadísticas del bot
-        this.vendedoresFilePath = path.join(__dirname, 'vendedores.json');
+        this.vendedoresFilePath = vendedoresFilePath; // Usar la ruta pasada como argumento
         this.vendedores = this._loadVendedores(); // Carga los vendedores desde el archivo
         this.pendingApprovals = new Map(); // Almacena solicitudes de cambio de tipo de cliente pendientes
         this.lastQuote = new Map(); // Almacena la última cotización por número de contacto

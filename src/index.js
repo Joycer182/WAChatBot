@@ -372,14 +372,23 @@ app.get('/products/search/:query', (req, res) => {
 async function main() {
     console.log('🔄 Inicializando el bot...');
 
+    // Verificar y crear vendedores.json si no existe
+    const vendedoresFilePath = path.join(__dirname, 'vendedores.json');
+    if (!fs.existsSync(vendedoresFilePath)) {
+        console.log('📝 Creando archivo vendedores.json...');
+        fs.writeFileSync(vendedoresFilePath, '{}', 'utf8');
+        logMessage('Archivo vendedores.json creado.');
+    }
+
+
     // 1. Inicializar ProductManager con la configuración
     productManager = new ProductManager(config);
 
     // 2. Cargar productos desde Excel
     await productManager.loadProducts();
 
-    // 3. Inicializar CommandManager, pasándole la instancia de productManager
-    commandManager = new CommandManager(productManager, client);
+    // 3. Inicializar CommandManager, pasándole la instancia de productManager y la ruta del archivo de vendedores
+    commandManager = new CommandManager(productManager, client, vendedoresFilePath);
 
     // 4. Iniciar el servidor Express
     app.listen(PORT, () => {
