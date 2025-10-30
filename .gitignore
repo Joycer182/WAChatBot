@@ -18,6 +18,7 @@ wschatbot-session/
 /src/client_data.json
 /src/bot_stats.json
 /src/vendedores.json
+/src/bcv_cache.json
 
 # Archivos de sistema operativo y editores
 .DS_Store

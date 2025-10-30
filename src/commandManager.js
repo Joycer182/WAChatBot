@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import whatsapp from 'whatsapp-web.js';
 import config from './config.js';
+import { getBcvRates } from './bcvScraper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,6 +176,8 @@ class CommandManager {
         this.registerCommand('aprobar', this.handleAprobar.bind(this));
         this.registerCommand('rechazar', this.handleRechazar.bind(this));
 
+        this.registerCommand('bcv', this.handleBcv.bind(this));
+
         // Nuevo comando para precios generales
         this.registerCommand('preciog', this.handlePrecioGeneral.bind(this));
     }
@@ -225,6 +228,7 @@ class CommandManager {
 */ayuda* - Muestra este menú
 */info* - Información de contacto
 */horarios* - Horarios de atención
+*/bcv* - Muestra la tasa de cambio del BCV
 
 *Comandos de productos:*
 */precio [código]* - Información y cotización de producto(s)
@@ -855,6 +859,40 @@ Te notificaremos tan pronto como sea procesada.`;
         } catch (error) {
             console.error(`Error al cargar la imagen para el producto ${codigo}:`, error);
             return `❌ Ocurrió un error al intentar enviar la imagen. Por favor, contacta directamente al vendedor.`;
+        }
+    }
+
+    // Comando para obtener la tasa del BCV
+    async handleBcv(args, contact) {
+        try {
+            const { dolar, euro, lastUpdated } = await getBcvRates();
+
+            let response = `🏦 *Tasa de Cambio del BCV*\n\n`;
+
+            if (dolar && dolar !== -1) {
+                response += `💵 *Dólar:* Bs. ${dolar.toFixed(2)}\n`;
+            } else {
+                response += `💵 *Dólar:* No disponible\n`;
+            }
+
+            if (euro && euro !== -1) {
+                response += `💶 *Euro:* Bs. ${euro.toFixed(2)}\n`;
+            } else {
+                response += `💶 *Euro:* No disponible\n`;
+            }
+
+            if (lastUpdated) {
+                const updateDate = new Date(lastUpdated);
+                const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'America/Caracas' };
+                response += `\n*Actualizado:* ${updateDate.toLocaleString('es-VE', options)}\n`;
+            }
+            
+            response += `\nFuente: Banco Central de Venezuela (BCV)`
+
+            return response;
+        } catch (error) {
+            console.error("Error al obtener las tasas del BCV:", error);
+            return "❌ Ocurrió un error al consultar las tasas de cambio. Por favor, intenta de nuevo más tarde.";
         }
     }
 
