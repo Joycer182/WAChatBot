@@ -403,13 +403,19 @@ No se encontraron productos que coincidan con tu búsqueda.
         }
 
         if (items.length === 0 && invalidFormatItems.length === 0) {
-            return `📝 *Cotización Rápida*\n\nNo se especificaron productos.`;
+            return `📝 *Cotización*\n\nNo se especificaron productos.`;
         }
 
         // Se ajusta el mensaje para indicar el tipo de cliente si no es el por defecto o si se forzó.
-        let response = `📝 *Cotización Rápida*\n\n`;
+        let response = `📝 *Cotización*\n\n`;
+
+        const quoteDate = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+        response += `*Fecha y Hora:* ${quoteDate}\n\n`;
+
         let grandTotal = 0;
         let notFoundItems = [];
+
+        const { dolar } = await getBcvRates(); // Obtener dolar al principio
 
         for (const item of items) {
             const product = this.productManager.getProductByCode(item.code);
@@ -432,7 +438,11 @@ No se encontraron productos que coincidan con tu búsqueda.
         }
 
         response += `---------------------------------------\n`;
-        response += `*Total de la Cotización: $${grandTotal.toFixed(2)}*\n`;
+        response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n\n`;
+        if (dolar && dolar !== -1) {
+            const totalBs = grandTotal * dolar;
+            response += `*Total Bs:* ${totalBs.toFixed(2)} Bs.\n`;
+        }
         response += `---------------------------------------\n\n`;
 
         if (invalidFormatItems.length > 0) {
@@ -442,7 +452,10 @@ No se encontraron productos que coincidan con tu búsqueda.
             response += `⚠️ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
         }
 
-        response += `Los Precios *NO INCLUYEN IVA*\n\nUsamos la tasa de Cambio del *BCV*`;
+        if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
+            response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n\n`;
+        }
+        response += `Los Precios *NO INCLUYEN IVA*`;
 
         // Guardar la cotización para poder enviarla luego
         this.lastQuote.set(contact.number, response);
@@ -870,13 +883,13 @@ Te notificaremos tan pronto como sea procesada.`;
             let response = `🏦 *Tasa de Cambio del BCV*\n\n`;
 
             if (dolar && dolar !== -1) {
-                response += `💵 *Dólar:* Bs. ${dolar.toFixed(2)}\n`;
+                response += `💵 *Dólar:* ${dolar.toFixed(2)} Bs.\n`;
             } else {
                 response += `💵 *Dólar:* No disponible\n`;
             }
 
             if (euro && euro !== -1) {
-                response += `💶 *Euro:* Bs. ${euro.toFixed(2)}\n`;
+                response += `💶 *Euro:* ${euro.toFixed(2)} Bs.\n`;
             } else {
                 response += `💶 *Euro:* No disponible\n`;
             }
