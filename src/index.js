@@ -188,7 +188,14 @@ Para buscar productos específicos, puedes usar:
 client.on('qr', (qr) => {
     if (!qrCodeGenerated) {
         console.log('\n🔗 Escanea este código QR con WhatsApp:');
-        qrcode.generate(qr, { small: true });
+
+        // 1. Generamos el QR como un string usando el callback
+        qrcode.generate(qr, { small: true }, (qrString) => {
+            // 2. Lo imprimimos directamente a la consola sin pasar por console.log
+            // Esto evita que el logger intercepte cada línea individual.
+            process.stdout.write(qrString + '\n');
+        });
+
         qrCodeGenerated = true;
         logMessage('Código QR generado para autenticación');
     }
