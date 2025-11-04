@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- Gestión del Caché en Archivo JSON ---
-const CACHE_FILE_PATH = path.join(__dirname, 'bcv_cache.json');
+const CACHE_FILE_PATH = path.join(__dirname, 'data', 'bcv_cache.json');
 
 let cache = {
     dolar: null,

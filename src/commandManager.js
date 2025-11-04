@@ -13,9 +13,9 @@ class CommandManager {
         this.commands = new Map();
         this.productManager = productManager; // Usar la instancia pasada
         this.client = client; // Guardar la instancia del cliente de WhatsApp
-        this.clientStatesFilePath = path.join(__dirname, 'client_data.json');
+        this.clientStatesFilePath = path.join(__dirname, 'data', 'client_data.json');
         this.clientStates = this._loadClientStates(); // Carga los estados desde el archivo
-        this.statsFilePath = path.join(__dirname, 'bot_stats.json');
+        this.statsFilePath = path.join(__dirname, 'data', 'bot_stats.json');
         this.botStats = this._loadBotStats(); // Carga las estadísticas del bot
         this.vendedoresFilePath = vendedoresFilePath; // Usar la ruta pasada como argumento
         this.vendedores = this._loadVendedores(); // Carga los vendedores desde el archivo
@@ -59,7 +59,7 @@ class CommandManager {
                 console.log('Vendedores cargados desde archivo.');
                 return new Map(lowerCaseVendedores);
             } else {
-                console.warn('No se encontró archivo de vendedores (vendedores.json). La función /enviar no funcionará.');
+                console.warn('No se encontró archivo de vendedores (src/data/vendedores.json). La función /enviar no funcionará.');
                 return new Map();
             }
         } catch (error) {
@@ -847,7 +847,7 @@ Te notificaremos tan pronto como sea procesada.`;
         }
 
         // Define la ruta de la carpeta de imágenes
-        const imageDir = path.join(__dirname, 'product_images');
+        const imageDir = path.join(__dirname, 'data', 'product_images');
         const extensions = ['.jpg', '.jpeg', '.png'];
         let imagePath = null;
 

@@ -19,7 +19,7 @@ const config = {
 
     // Configuración de productos desde Excel
     productos: {
-        excelFilePath: process.env.EXCEL_FILE_PATH || 'TablaProductos.xlsx',
+        excelFilePath: process.env.EXCEL_FILE_PATH || 'src/data/TablaProductos.xlsx',
         excelSheetName: process.env.EXCEL_SHEET_NAME || 'Precios', // Nombre de la hoja con los productos
         priceMultiplier: parseFloat(process.env.PRICE_MULTIPLIER) || 1.0,
         defaultClientType: process.env.DEFAULT_CLIENT_TYPE || 'general',

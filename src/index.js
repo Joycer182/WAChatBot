@@ -60,7 +60,7 @@ function logMessage(message, type = 'info') {
     const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
     
     // Crear directorio de logs si no existe
-    const logsDir = path.join(__dirname, 'logs');
+    const logsDir = path.join(__dirname, 'data', 'logs');
     if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir);
     }
@@ -84,7 +84,7 @@ function saveConversation(contact, message, isFromBot = false) {
         messageType: message.type
     };
     
-    const conversationsDir = path.join(__dirname, 'conversations');
+    const conversationsDir = path.join(__dirname, 'data', 'conversations');
     if (!fs.existsSync(conversationsDir)) {
         fs.mkdirSync(conversationsDir);
     }
@@ -380,7 +380,7 @@ async function main() {
     console.log('🔄 Inicializando el bot...');
 
     // Verificar y crear vendedores.json si no existe
-    const vendedoresFilePath = path.join(__dirname, 'vendedores.json');
+    const vendedoresFilePath = path.join(__dirname, 'data', 'vendedores.json');
     if (!fs.existsSync(vendedoresFilePath)) {
         console.log('📝 Creando archivo vendedores.json...');
         fs.writeFileSync(vendedoresFilePath, '{}', 'utf8');

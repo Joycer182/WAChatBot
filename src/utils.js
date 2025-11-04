@@ -8,8 +8,8 @@ const __dirname = path.dirname(__filename);
 // Script de utilidades para el Bot de WhatsApp
 class BotUtils {
     constructor() {
-        this.logsDir = path.join(__dirname, 'logs');
-        this.conversationsDir = path.join(__dirname, 'conversations');
+        this.logsDir = path.join(__dirname, 'data', 'logs');
+        this.conversationsDir = path.join(__dirname, 'data', 'conversations');
     }
 
     // Limpiar logs antiguos
