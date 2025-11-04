@@ -59,9 +59,9 @@ cp env.example .env
 - `UsdG`: Precio para clientes generales
 
 ### 4. Configurar Vendedores (Opcional)
-Para utilizar el comando `/enviar`, es necesario crear un archivo `vendedores.json` en la carpeta `src/`. Este archivo contiene los alias y números de WhatsApp de los vendedores a quienes se les pueden enviar las cotizaciones.
+Para utilizar el comando `/enviar`, es necesario crear un archivo `vendedores.json` en la carpeta `src/data/`. Este archivo contiene los alias y números de WhatsApp de los vendedores a quienes se les pueden enviar las cotizaciones.
 
-**Formato del archivo `src/vendedores.json`:**
+**Formato del archivo `src/data/vendedores.json`:**
 ```json
 {
   "nombre_vendedor1": "584140000001",
@@ -174,8 +174,8 @@ El bot responde automáticamente a:
 
 ### Archivos de Log
 
-- `logs/chatbot.log` - Logs del sistema
-- `conversations/[numero].json` - Historial de conversaciones por cliente
+- `src/data/logs/chatbot.log` - Logs del sistema
+- `src/data/conversations/[numero].json` - Historial de conversaciones por cliente
 
 ## 🔧 Personalización
 
@@ -195,26 +195,28 @@ Todas las respuestas predefinidas, mensajes de comandos y palabras clave se encu
 ```
 WSChatBot/
 ├── src/
-│   └── index.js          # Archivo principal del bot
-│   ├── commandManager.js   # Gestiona todos los comandos y su lógica
-│   ├── productManager.js   # Gestiona la carga y búsqueda de productos desde Excel
-│   ├── config.js           # Configuración centralizada y textos del bot
-│   └── client_data.json    # Almacena el tipo de cliente para persistencia
-│   └── vendedores.json     # Lista de vendedores para el comando /enviar
-├── product_images/       # Carpeta para las imágenes de los productos (ej. 11050.jpg)
-├── logs/                 # Logs del sistema
-├── conversations/        # Conversaciones guardadas
-├── .env                  # Variables de entorno
-├── env.example          # Ejemplo de configuración
-├── package.json         # Dependencias y scripts
-└── README.md           # Este archivo
+│   ├── index.js            # Archivo principal del bot
+│   ├── commandManager.js     # Gestiona todos los comandos y su lógica
+│   ├── productManager.js     # Gestiona la carga y búsqueda de productos desde Excel
+│   ├── config.js             # Configuración centralizada y textos del bot
+│   └── data/                 # Carpeta para todos los datos generados y persistentes
+│       ├── conversations/    # Conversaciones guardadas
+│       ├── logs/             # Logs del sistema
+│       ├── product_images/   # Imágenes de los productos (ej. 11050.jpg)
+│       ├── client_data.json  # Almacena el tipo de cliente para persistencia
+│       ├── vendedores.json   # Lista de vendedores para el comando /enviar
+│       └── ...               # Otros archivos de datos (caché, estadísticas)
+├── .env                    # Variables de entorno
+├── env.example             # Ejemplo de configuración
+├── package.json            # Dependencias y scripts
+└── README.md               # Este archivo
 ```
 
 ## 🔒 Seguridad
 
-- Las conversaciones se guardan localmente en la carpeta `conversations/`
+- Las conversaciones se guardan localmente en la carpeta `src/data/conversations/`
 - No se comparten datos con terceros
-- La preferencia de tipo de cliente se guarda localmente en `src/client_data.json`
+- La preferencia de tipo de cliente se guarda localmente en `src/data/client_data.json`
 - Sesión de WhatsApp cifrada localmente
 - Logs sensibles protegidos
 

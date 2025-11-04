@@ -1,9 +1,6 @@
 # Variables de entorno - ¡NUNCA subir a Git!
 .env
 
-# Archivo excel con la informacion de los precios.
-TablaProductos.xlsx
-
 # Dependencias
 /node_modules
 
@@ -13,17 +10,23 @@ wschatbot-session/
 .wwebjs_cache/
 
 # Archivos generados por el bot en tiempo de ejecución
-/src/logs
-/src/conversations
-/src/client_data.json
-/src/bot_stats.json
-/src/vendedores.json
-/src/bcv_cache.json
+# Movidos a src/data y gestionados desde allí.
+
+# Ignorar contenido de carpetas de datos pero rastrear la carpeta
+src/data/conversations/*
+!src/data/conversations/.gitkeep
+src/data/logs/*
+!src/data/logs/.gitkeep
+src/data/product_images/*
+!src/data/product_images/.gitkeep
+
+# Ignorar archivos de datos específicos en la carpeta data
+src/data/TablaProductos.xlsx
+src/data/bcv_cache.json
+src/data/bot_stats.json
+src/data/client_data.json
+src/data/vendedores.json
 
 # Archivos de sistema operativo y editores
 .DS_Store
 .vscode/
-
-# Mantener la carpeta de imágenes de productos, pero ignorar todo su contenido
-/src/product_images/*
-!/src/product_images/.gitkeep
