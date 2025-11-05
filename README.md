@@ -7,7 +7,7 @@ Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención
 - **Integración con Excel**: Lee productos directamente desde archivo `TablaProductos.xlsx`
 - **Consulta Robusta de Tasa de Cambio (BCV)**: Sistema de caché inteligente y persistente para las tasas del BCV. La lógica de actualización garantiza tener siempre la tasa más reciente:
   - **Actualización Diaria Asegurada**: Si la tasa en caché es de un día anterior, se actualiza automáticamente.
-  - **Captura Agresiva**: Durante la ventana de publicación del BCV (3-5 PM VET), el bot consulta constantemente para obtener la nueva tasa apenas esté disponible.
+  - **Captura Agresiva**: Durante la ventana de publicación del BCV (3-6 PM VET), el bot consulta constantemente para obtener la nueva tasa apenas esté disponible.
   - **Mecanismo de Recuperación**: Si el bot estuvo inactivo durante la ventana de actualización, al reactivarse detecta que no tiene la tasa del día y realiza la consulta para ponerse al día. Esto minimiza las llamadas a la API fuera de hora, pero garantiza que la tasa esté siempre vigente.
 - **Múltiples Tipos de Cliente**: Precios diferenciados para Tiendas, Instaladores y Clientes Generales
 - **Flujo de Aprobación para Tipos de Cliente**: Implementa un proceso de aprobación por parte de los vendedores para los cambios de tipo de cliente (Tienda, Instalador, General), asegurando un control y gestión adecuados.

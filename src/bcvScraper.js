@@ -68,7 +68,7 @@ function getVenezuelaTime() {
  * La función devuelve `true` (consultar) bajo las siguientes condiciones, en orden de prioridad:
  * 1. Si el caché está vacío.
  * 2. Si la fecha del caché es de un día anterior.
- * 3. Si la hora actual está DENTRO de la ventana de actualización del BCV (3-5 PM VET), para capturar la tasa nueva tan pronto como se publique.
+ * 3. Si la hora actual está DENTRO de la ventana de actualización del BCV (3-6 PM VET), para capturar la tasa nueva tan pronto como se publique.
  * 4. Si la hora actual está DESPUÉS de la ventana de actualización, pero la última actualización en caché fue ANTES de que la ventana comenzara. Esto sirve como un mecanismo de recuperación si el bot estuvo inactivo.
  * 
  * En cualquier otro caso, devuelve `false` para usar el valor del caché.
@@ -94,21 +94,20 @@ function shouldFetchNewRates() {
     }
 
     // Si es el mismo día, aplicar lógica de ventana de actualización
-    // 3. Si la hora actual está DENTRO de la ventana de actualización del BCV (3-5 PM VET),
-    //    para capturar la tasa nueva tan pronto como se publique.
-    //    Y la última actualización fue ANTES de la ventana.
-    const isWithinUpdateWindow = currentHour >= 15 && currentHour < 17; // 3 PM to 4:59 PM
+    // 3. Si la hora actual está DENTRO de la ventana de actualización del BCV (3-6 PM VET),
+    //    se fuerza la consulta para asegurar tener la tasa más reciente.
+    const isWithinUpdateWindow = currentHour >= 15 && currentHour < 18; // 3 PM to 5:59 PM
     const wasUpdatedBeforeWindow = lastUpdatedHour < 15; // Before 3 PM
 
-    if (isWithinUpdateWindow && wasUpdatedBeforeWindow) {
-        console.log("Dentro de la ventana de actualización y caché antiguo. Se necesita consultar al BCV.");
+    if (isWithinUpdateWindow) {
+        console.log("Dentro de la ventana de actualización. Forzando consulta al BCV.");
         return true;
     }
 
-    // 4. Si la hora actual está DESPUÉS de la ventana de actualización (después de las 5 PM VET),
+    // 4. Si la hora actual está DESPUÉS de la ventana de actualización (después de las 6 PM VET),
     //    pero la última actualización en caché fue ANTES de que la ventana comenzara.
     //    Esto sirve como un mecanismo de recuperación si el bot estuvo inactivo.
-    const isAfterUpdateWindow = currentHour >= 17; // 5 PM or later
+    const isAfterUpdateWindow = currentHour >= 18; // 6 PM or later
     if (isAfterUpdateWindow && wasUpdatedBeforeWindow) {
         console.log("Después de la ventana de actualización y caché antiguo. Se necesita consultar al BCV (recuperación).");
         return true;
