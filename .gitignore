@@ -6,8 +6,9 @@
 
 # Archivos de sesión de WhatsApp - ¡MUY IMPORTANTE no subir!
 wschatbot-session/
-.wwebjs_auth/
-.wwebjs_cache/
+/.wwebjs_cache/
+/src/data/.wwebjs_auth/
+!/src/data/.wwebjs_auth/.gitkeep
 
 # Archivos generados por el bot en tiempo de ejecución
 # Movidos a src/data y gestionados desde allí.

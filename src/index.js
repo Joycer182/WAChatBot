@@ -37,7 +37,9 @@ app.use(express.json());
 
 // Crear cliente de WhatsApp
 const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+        dataPath: path.join(__dirname, 'data', '.wwebjs_auth')
+    }),
     puppeteer: {
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
