@@ -407,10 +407,12 @@ No se encontraron productos que coincidan con tu búsqueda.
         }
 
         // Se ajusta el mensaje para indicar el tipo de cliente si no es el por defecto o si se forzó.
-        let response = `📝 *Cotización*\n\n`;
+        let response = `📝 *Cotización Rápida*\n\n`;
 
-        const quoteDate = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
-        response += `*Fecha y Hora:* ${quoteDate}\n\n`;
+        const quoteDate = new Date().toLocaleDateString('es-VE', { timeZone: 'America/Caracas' });
+        response += `*Fecha:* ${quoteDate}\n\n`;
+
+        response += `---------------------------------------\n\n`;
 
         let grandTotal = 0;
         let notFoundItems = [];
@@ -437,11 +439,16 @@ No se encontraron productos que coincidan con tu búsqueda.
             }
         }
 
-        response += `---------------------------------------\n`;
+        response += `---------------------------------------\n\n`;
         response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n\n`;
+
+        if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
+            response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n\n`;
+        }
+
         if (dolar && dolar !== -1) {
             const totalBs = grandTotal * dolar;
-            response += `*Total Bs:* ${totalBs.toFixed(2)} Bs.\n`;
+            response += `*Total Bs:* ${totalBs.toFixed(2)} Bs.\n\n`;
         }
         response += `---------------------------------------\n\n`;
 
@@ -452,9 +459,6 @@ No se encontraron productos que coincidan con tu búsqueda.
             response += `⚠️ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
         }
 
-        if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
-            response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n\n`;
-        }
         response += `Los Precios *NO INCLUYEN IVA*`;
 
         // Guardar la cotización para poder enviarla luego
