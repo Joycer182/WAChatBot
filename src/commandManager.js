@@ -416,6 +416,7 @@ No se encontraron productos que coincidan con tu búsqueda.
 
         let grandTotal = 0;
         let notFoundItems = [];
+        let totalPiezas = 0;
 
         const { dolar } = await getBcvRates(); // Obtener dolar al principio
 
@@ -425,6 +426,7 @@ No se encontraron productos que coincidan con tu búsqueda.
                 const unitPrice = this.productManager.getRawPrice(product, clientType);
                 const subTotal = unitPrice * item.quantity;
                 grandTotal += subTotal;
+                totalPiezas += item.quantity;
 
                 const formattedUnitPrice = this.productManager.getFormattedPrice(product, clientType);
                 const formattedSubTotal = `$${subTotal.toFixed(2)}`; // Asegurar 2 decimales
@@ -439,7 +441,8 @@ No se encontraron productos que coincidan con tu búsqueda.
             }
         }
 
-        response += `---------------------------------------\n\n`;
+        response += `---------------------------------------\n`;
+
         response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n\n`;
 
         if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
@@ -450,6 +453,9 @@ No se encontraron productos que coincidan con tu búsqueda.
             const totalBs = grandTotal * dolar;
             response += `*Total Bs:* ${totalBs.toFixed(2)} Bs.\n\n`;
         }
+
+        response += `*Total de Artículos:* ${totalPiezas}\n`;
+
         response += `---------------------------------------\n\n`;
 
         if (invalidFormatItems.length > 0) {
@@ -518,8 +524,15 @@ No se encontraron productos que coincidan con tu búsqueda.
         }
 
         let response = `💱 *Cotización Especial*\n\n`;
+
+        const quoteDate = new Date().toLocaleDateString('es-VE', { timeZone: 'America/Caracas' });
+        response += `*Fecha:* ${quoteDate}\n\n`;
+
+        response += `---------------------------------------\n\n`;
+
         let grandTotal = 0;
         let notFoundItems = [];
+        let totalPiezas = 0;
 
         for (const item of items) {
             const product = this.productManager.getProductByCode(item.code);
@@ -527,6 +540,7 @@ No se encontraron productos que coincidan con tu búsqueda.
                 const unitPrice = this.productManager.getBasePrice(product, clientType);
                 const subTotal = unitPrice * item.quantity;
                 grandTotal += subTotal;
+                totalPiezas += item.quantity;
 
                 response += `*Producto:* ${product.descripcion}\n`;
                 response += `*Código:* ${item.code}\n`;
@@ -542,7 +556,14 @@ No se encontraron productos que coincidan con tu búsqueda.
             response += `*Precios calculados para tipo de cliente:* ${clientType.toUpperCase()}\n\n`;
         }
 
-        response += `---------------------------------------\n*Total de la Cotización: $${grandTotal.toFixed(2)}*\n---------------------------------------\n\n`;
+        response += `---------------------------------------\n`;
+
+        response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n\n`;
+
+        response += `*Total de Artículos:* ${totalPiezas}\n`;
+
+        response += `---------------------------------------\n\n`;
+
         if (invalidFormatItems.length > 0) response += `⚠️ *Argumentos inválidos (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
         if (notFoundItems.length > 0) response += `⚠️ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
         response += `Los Precios *NO INCLUYEN IVA*`;
