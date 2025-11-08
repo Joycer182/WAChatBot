@@ -407,7 +407,7 @@ No se encontraron productos que coincidan con tu búsqueda.
         }
 
         // Se ajusta el mensaje para indicar el tipo de cliente si no es el por defecto o si se forzó.
-        let response = `📝 *Cotización Rápida*\n\n`;
+        let response = `📝 *Cotización Rápida*\n`;
 
         const quoteDate = new Date().toLocaleDateString('es-VE', { timeZone: 'America/Caracas' });
         response += `*Fecha:* ${quoteDate}\n\n`;
@@ -431,7 +431,7 @@ No se encontraron productos que coincidan con tu búsqueda.
                 const formattedUnitPrice = this.productManager.getFormattedPrice(product, clientType);
                 const formattedSubTotal = `$${subTotal.toFixed(2)}`; // Asegurar 2 decimales
 
-                response += `*Producto:* ${product.descripcion}\n`;
+                response += `✅ *Producto:* ${product.descripcion}\n`;
                 response += `*Código:* ${item.code}\n`;
                 response += `*Cantidad:* ${item.quantity}\n`;
                 response += `*Precio Unitario:* ${formattedUnitPrice}\n`;
@@ -443,15 +443,15 @@ No se encontraron productos que coincidan con tu búsqueda.
 
         response += `---------------------------------------\n`;
 
-        response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n\n`;
+        response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n`;
 
         if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
-            response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n\n`;
+            response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n`;
         }
 
         if (dolar && dolar !== -1) {
             const totalBs = grandTotal * dolar;
-            response += `*Total Bs:* ${totalBs.toFixed(2)} Bs.\n\n`;
+            response += `*Total Bs:* ${totalBs.toFixed(2)} Bs.\n`;
         }
 
         response += `*Total de Artículos:* ${totalPiezas}\n`;
@@ -523,7 +523,7 @@ No se encontraron productos que coincidan con tu búsqueda.
             return `💱 *Cotización en Divisas*\n\nNo se especificaron productos.`;
         }
 
-        let response = `💱 *Cotización Especial*\n\n`;
+        let response = `💱 *Cotización Especial*\n`;
 
         const quoteDate = new Date().toLocaleDateString('es-VE', { timeZone: 'America/Caracas' });
         response += `*Fecha:* ${quoteDate}\n\n`;
@@ -542,7 +542,7 @@ No se encontraron productos que coincidan con tu búsqueda.
                 grandTotal += subTotal;
                 totalPiezas += item.quantity;
 
-                response += `*Producto:* ${product.descripcion}\n`;
+                response += `✅ *Producto:* ${product.descripcion}\n`;
                 response += `*Código:* ${item.code}\n`;
                 response += `*Cantidad:* ${item.quantity}\n`;
                 response += `*Precio Especial Unitario:* $${unitPrice.toFixed(2)}\n`;
