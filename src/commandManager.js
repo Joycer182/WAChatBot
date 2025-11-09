@@ -379,6 +379,14 @@ No se encontraron productos que coincidan con tu búsqueda.
             const code = currentArg;
             let quantity = 1;
 
+            // --- Validación de existencia del producto ---
+            if (!this.productManager.getProductByCode(code)) {
+                invalidFormatItems.push(`"${code}" (código de producto no válido)`);
+                i++;
+                continue;
+            }
+            // --- Fin de la validación ---
+
             if (i + 1 < cleanArgs.length) {
                 const nextArg = cleanArgs[i + 1];
                 const nextArgAsInt = parseInt(nextArg);
@@ -400,6 +408,21 @@ No se encontraron productos que coincidan con tu búsqueda.
 
             items.push({ code, quantity });
             i++;
+        }
+
+        if (items.length === 0 && invalidFormatItems.length > 0) {
+            let errorResponse = `❌ *Error en la Cotización*\n\n`;
+            errorResponse += `No se encontraron productos válidos en tu solicitud. Por favor, verifica los códigos o cantidades ingresados.\n\n`;
+            errorResponse += `*Argumentos con formato inválido:*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+            errorResponse += `*Aquí tienes ayuda sobre cómo usar el comando de precios:*\n\n`;
+            errorResponse += `Después del comando */precio* solo debe ingresar códigos válidos, seguido de la cantidad de ese producto.\n\n`;
+            errorResponse += `*/precio [código]* - Para ver información y cotizar uno o más productos.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/precio* 11050 3\n\n`;
+            errorResponse += `*/buscar [término de búsqueda]* - Para encontrar productos por su nombre o descripción.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/buscar* breaker\n`;
+            return errorResponse;
         }
 
         if (items.length === 0 && invalidFormatItems.length === 0) {
@@ -459,10 +482,10 @@ No se encontraron productos que coincidan con tu búsqueda.
         response += `---------------------------------------\n\n`;
 
         if (invalidFormatItems.length > 0) {
-            response += `⚠️ *Argumentos con formato inválido (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+            response += `❌ *Argumentos con formato inválido (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
         }
         if (notFoundItems.length > 0) {
-            response += `⚠️ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
+            response += `❌ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
         }
 
         response += `Los Precios *NO INCLUYEN IVA*`;
@@ -499,6 +522,14 @@ No se encontraron productos que coincidan con tu búsqueda.
             const code = currentArg;
             let quantity = 1;
 
+            // --- Validación de existencia del producto ---
+            if (!this.productManager.getProductByCode(code)) {
+                invalidFormatItems.push(`"${code}" (código de producto no válido)`);
+                i++;
+                continue;
+            }
+            // --- Fin de la validación ---
+
             if (i + 1 < cleanArgs.length) {
                 const nextArg = cleanArgs[i + 1];
                 const nextArgAsInt = parseInt(nextArg);
@@ -517,6 +548,21 @@ No se encontraron productos que coincidan con tu búsqueda.
 
             items.push({ code, quantity });
             i++;
+        }
+
+        if (items.length === 0 && invalidFormatItems.length > 0) {
+            let errorResponse = `❌ *Error en la Cotización*\n\n`;
+            errorResponse += `No se encontraron productos válidos en tu solicitud. Por favor, verifica los códigos o cantidades ingresados.\n\n`;
+            errorResponse += `*Argumentos con formato inválido:*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+            errorResponse += `*Aquí tienes ayuda sobre cómo usar el comando de divisas:*\n\n`;
+            errorResponse += `Después del comando */divisas* solo debe ingresar códigos válidos, seguido de la cantidad de ese producto.\n\n`;
+            errorResponse += `*/divisas [código]* - Para ver información y cotizar uno o más productos.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/divisas* 11050 3\n\n`;
+            errorResponse += `*/buscar [término de búsqueda]* - Para encontrar productos por su nombre o descripción.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/buscar* breaker\n`;
+            return errorResponse;
         }
 
         if (items.length === 0 && invalidFormatItems.length === 0) {
@@ -564,8 +610,8 @@ No se encontraron productos que coincidan con tu búsqueda.
 
         response += `---------------------------------------\n\n`;
 
-        if (invalidFormatItems.length > 0) response += `⚠️ *Argumentos inválidos (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
-        if (notFoundItems.length > 0) response += `⚠️ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
+        if (invalidFormatItems.length > 0) response += `❌ *Argumentos inválidos (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+        if (notFoundItems.length > 0) response += `❌ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
         response += `Los Precios *NO INCLUYEN IVA*`;
 
         // Guardar la cotización para poder enviarla luego
