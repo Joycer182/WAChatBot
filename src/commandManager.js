@@ -379,6 +379,14 @@ No se encontraron productos que coincidan con tu búsqueda.
             const code = currentArg;
             let quantity = 1;
 
+            // --- Validación de existencia del producto ---
+            if (!this.productManager.getProductByCode(code)) {
+                invalidFormatItems.push(`"${code}" (código de producto no válido)`);
+                i++;
+                continue;
+            }
+            // --- Fin de la validación ---
+
             if (i + 1 < cleanArgs.length) {
                 const nextArg = cleanArgs[i + 1];
                 const nextArgAsInt = parseInt(nextArg);
@@ -402,18 +410,36 @@ No se encontraron productos que coincidan con tu búsqueda.
             i++;
         }
 
+        if (items.length === 0 && invalidFormatItems.length > 0) {
+            let errorResponse = `❌ *Error en la Cotización*\n\n`;
+            errorResponse += `No se encontraron productos válidos en tu solicitud. Por favor, verifica los códigos o cantidades ingresados.\n\n`;
+            errorResponse += `*Argumentos con formato inválido:*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+            errorResponse += `*Aquí tienes ayuda sobre cómo usar el comando de precios:*\n\n`;
+            errorResponse += `Después del comando */precio* solo debe ingresar códigos válidos, seguido de la cantidad de ese producto.\n\n`;
+            errorResponse += `*/precio [código]* - Para ver información y cotizar uno o más productos.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/precio* 11050 3\n\n`;
+            errorResponse += `*/buscar [término de búsqueda]* - Para encontrar productos por su nombre o descripción.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/buscar* breaker\n`;
+            return errorResponse;
+        }
+
         if (items.length === 0 && invalidFormatItems.length === 0) {
             return `📝 *Cotización*\n\nNo se especificaron productos.`;
         }
 
         // Se ajusta el mensaje para indicar el tipo de cliente si no es el por defecto o si se forzó.
-        let response = `📝 *Cotización*\n\n`;
+        let response = `📝 *Cotización Rápida*\n`;
 
-        const quoteDate = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
-        response += `*Fecha y Hora:* ${quoteDate}\n\n`;
+        const quoteDate = new Date().toLocaleDateString('es-VE', { timeZone: 'America/Caracas' });
+        response += `*Fecha:* ${quoteDate}\n\n`;
+
+        response += `---------------------------------------\n\n`;
 
         let grandTotal = 0;
         let notFoundItems = [];
+        let totalPiezas = 0;
 
         const { dolar } = await getBcvRates(); // Obtener dolar al principio
 
@@ -423,11 +449,12 @@ No se encontraron productos que coincidan con tu búsqueda.
                 const unitPrice = this.productManager.getRawPrice(product, clientType);
                 const subTotal = unitPrice * item.quantity;
                 grandTotal += subTotal;
+                totalPiezas += item.quantity;
 
                 const formattedUnitPrice = this.productManager.getFormattedPrice(product, clientType);
                 const formattedSubTotal = `$${subTotal.toFixed(2)}`; // Asegurar 2 decimales
 
-                response += `*Producto:* ${product.descripcion}\n`;
+                response += `✅ *Producto:* ${product.descripcion}\n`;
                 response += `*Código:* ${item.code}\n`;
                 response += `*Cantidad:* ${item.quantity}\n`;
                 response += `*Precio Unitario:* ${formattedUnitPrice}\n`;
@@ -438,23 +465,29 @@ No se encontraron productos que coincidan con tu búsqueda.
         }
 
         response += `---------------------------------------\n`;
-        response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n\n`;
+
+        response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n`;
+
+        if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
+            response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n`;
+        }
+
         if (dolar && dolar !== -1) {
             const totalBs = grandTotal * dolar;
             response += `*Total Bs:* ${totalBs.toFixed(2)} Bs.\n`;
         }
+
+        response += `*Total de Artículos:* ${totalPiezas}\n`;
+
         response += `---------------------------------------\n\n`;
 
         if (invalidFormatItems.length > 0) {
-            response += `⚠️ *Argumentos con formato inválido (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+            response += `❌ *Argumentos con formato inválido (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
         }
         if (notFoundItems.length > 0) {
-            response += `⚠️ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
+            response += `❌ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
         }
 
-        if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
-            response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n\n`;
-        }
         response += `Los Precios *NO INCLUYEN IVA*`;
 
         // Guardar la cotización para poder enviarla luego
@@ -489,6 +522,14 @@ No se encontraron productos que coincidan con tu búsqueda.
             const code = currentArg;
             let quantity = 1;
 
+            // --- Validación de existencia del producto ---
+            if (!this.productManager.getProductByCode(code)) {
+                invalidFormatItems.push(`"${code}" (código de producto no válido)`);
+                i++;
+                continue;
+            }
+            // --- Fin de la validación ---
+
             if (i + 1 < cleanArgs.length) {
                 const nextArg = cleanArgs[i + 1];
                 const nextArgAsInt = parseInt(nextArg);
@@ -509,13 +550,35 @@ No se encontraron productos que coincidan con tu búsqueda.
             i++;
         }
 
+        if (items.length === 0 && invalidFormatItems.length > 0) {
+            let errorResponse = `❌ *Error en la Cotización*\n\n`;
+            errorResponse += `No se encontraron productos válidos en tu solicitud. Por favor, verifica los códigos o cantidades ingresados.\n\n`;
+            errorResponse += `*Argumentos con formato inválido:*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+            errorResponse += `*Aquí tienes ayuda sobre cómo usar el comando de divisas:*\n\n`;
+            errorResponse += `Después del comando */divisas* solo debe ingresar códigos válidos, seguido de la cantidad de ese producto.\n\n`;
+            errorResponse += `*/divisas [código]* - Para ver información y cotizar uno o más productos.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/divisas* 11050 3\n\n`;
+            errorResponse += `*/buscar [término de búsqueda]* - Para encontrar productos por su nombre o descripción.\n`;
+            errorResponse += `*Ejemplo:*\n`;
+            errorResponse += `*/buscar* breaker\n`;
+            return errorResponse;
+        }
+
         if (items.length === 0 && invalidFormatItems.length === 0) {
             return `💱 *Cotización en Divisas*\n\nNo se especificaron productos.`;
         }
 
-        let response = `💱 *Cotización Especial*\n\n`;
+        let response = `💱 *Cotización Especial*\n`;
+
+        const quoteDate = new Date().toLocaleDateString('es-VE', { timeZone: 'America/Caracas' });
+        response += `*Fecha:* ${quoteDate}\n\n`;
+
+        response += `---------------------------------------\n\n`;
+
         let grandTotal = 0;
         let notFoundItems = [];
+        let totalPiezas = 0;
 
         for (const item of items) {
             const product = this.productManager.getProductByCode(item.code);
@@ -523,8 +586,9 @@ No se encontraron productos que coincidan con tu búsqueda.
                 const unitPrice = this.productManager.getBasePrice(product, clientType);
                 const subTotal = unitPrice * item.quantity;
                 grandTotal += subTotal;
+                totalPiezas += item.quantity;
 
-                response += `*Producto:* ${product.descripcion}\n`;
+                response += `✅ *Producto:* ${product.descripcion}\n`;
                 response += `*Código:* ${item.code}\n`;
                 response += `*Cantidad:* ${item.quantity}\n`;
                 response += `*Precio Especial Unitario:* $${unitPrice.toFixed(2)}\n`;
@@ -538,9 +602,16 @@ No se encontraron productos que coincidan con tu búsqueda.
             response += `*Precios calculados para tipo de cliente:* ${clientType.toUpperCase()}\n\n`;
         }
 
-        response += `---------------------------------------\n*Total de la Cotización: $${grandTotal.toFixed(2)}*\n---------------------------------------\n\n`;
-        if (invalidFormatItems.length > 0) response += `⚠️ *Argumentos inválidos (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
-        if (notFoundItems.length > 0) response += `⚠️ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
+        response += `---------------------------------------\n`;
+
+        response += `*Total de la Cotización:* $${grandTotal.toFixed(2)}\n\n`;
+
+        response += `*Total de Artículos:* ${totalPiezas}\n`;
+
+        response += `---------------------------------------\n\n`;
+
+        if (invalidFormatItems.length > 0) response += `❌ *Argumentos inválidos (ignorados):*\n• ${invalidFormatItems.join('\n• ')}\n\n`;
+        if (notFoundItems.length > 0) response += `❌ *Productos no encontrados:*\n${notFoundItems.join(', ')}\n\n`;
         response += `Los Precios *NO INCLUYEN IVA*`;
 
         // Guardar la cotización para poder enviarla luego
@@ -568,12 +639,12 @@ Para consultar el precio de un producto específico, escribe:
 Para cotizaciones rápidas, escribe:
 /precio *CódigoProducto1, cantidad, CódigoProductoN, cantidad*
 
-*Ejemplo:* /precio *11050 10000 3 10050 2*
+*Ejemplo:* /precio *11050, 1, 10000, 3, 10050, 2*
 
 También  puedes hacer la misma consulta de la siguiente manera:
 /precio *CódigoProducto1 cantidad CódigoProductoN cantidad*
 
-*Ejemplo:* /precio *11050 10000 3 10050 2*
+*Ejemplo:* /precio *11050 1 10000 3 10050 2*
 
 *Para enviar la cotización a un vendedor:*
 Después de hacer tu cotización, usa el comando: 
@@ -604,12 +675,12 @@ Para consultar el precio general de un producto, escribe:
 Para cotizaciones rápidas, escribe:
 /preciog *CódigoProducto1, cantidad, CódigoProductoN, cantidad*
 
-*Ejemplo:* /preciog *11050 10000 3 10050 2*
+*Ejemplo:* /preciog *11050, 1, 10000, 3, 10050, 2*
 
 También  puedes hacer la misma consulta de la siguiente manera:
 /preciog *CódigoProducto1 cantidad CódigoProductoN cantidad*
 
-*Ejemplo:* /preciog *11050 10000 3 10050 2*
+*Ejemplo:* /preciog *11050 1 10000 3 10050 2*
 
 *Para enviar la cotización a un vendedor:*
 Después de hacer tu cotización, usa el comando: 
@@ -787,7 +858,7 @@ Te notificaremos tan pronto como sea procesada.`;
         }
 
         if (args.length === 0) {
-            return `💱 *Consulta de Precios en Divisas*\n\nEste comando muestra el precio en divisas de un producto.\n\nPara consultar el precio de un producto específico, escribe:\n/divisas *Código Producto*\n\n*Ejemplo:* /divisas *11050*\n\n\nPara cotizaciones rápidas, escribe:\n/divisas *CódigoProducto1, cantidad, CódigoProductoN, cantidad*\n\n*Ejemplo:* /divisas *11050, 10000, 3, 10050, 2*\n\nTambién  puedes hacer la misma consulta de la siguiente manera:\n/divisas *CódigoProducto1 cantidad CódigoProductoN cantidad*\n\n*Ejemplo:* /divisas *11050 10000 3 10050 2*\n\n*Para enviar la cotización a un vendedor:*\nDespués de hacer tu cotización, usa el comando: \n/enviar *Nombre del Vendedor*\n\n*NOTAS:*\nSe permiten máximo 20 productos para la cotización rápida.\nSi no se indica la cantidad, se asume que es 1.`;
+            return `💱 *Consulta de Precios en Divisas*\n\nEste comando muestra el precio en divisas de un producto.\n\nPara consultar el precio de un producto específico, escribe:\n/divisas *Código Producto*\n\n*Ejemplo:* /divisas *11050*\n\n\nPara cotizaciones rápidas, escribe:\n/divisas *CódigoProducto1, cantidad, CódigoProductoN, cantidad*\n\n*Ejemplo:* /divisas *11050, 1, 10000, 3, 10050, 2*\n\nTambién  puedes hacer la misma consulta de la siguiente manera:\n/divisas *CódigoProducto1 cantidad CódigoProductoN cantidad*\n\n*Ejemplo:* /divisas *11050 1 10000 3 10050 2*\n\n*Para enviar la cotización a un vendedor:*\nDespués de hacer tu cotización, usa el comando: \n/enviar *Nombre del Vendedor*\n\n*NOTAS:*\nSe permiten máximo 20 productos para la cotización rápida.\nSi no se indica la cantidad, se asume que es 1.`;
         }
 
         // Se delega toda la lógica de cotización a _handleMultiDivisaQuote
