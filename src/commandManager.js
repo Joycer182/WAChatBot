@@ -639,12 +639,12 @@ Para consultar el precio de un producto específico, escribe:
 Para cotizaciones rápidas, escribe:
 /precio *CódigoProducto1, cantidad, CódigoProductoN, cantidad*
 
-*Ejemplo:* /precio *11050 10000 3 10050 2*
+*Ejemplo:* /precio *11050, 1, 10000, 3, 10050, 2*
 
 También  puedes hacer la misma consulta de la siguiente manera:
 /precio *CódigoProducto1 cantidad CódigoProductoN cantidad*
 
-*Ejemplo:* /precio *11050 10000 3 10050 2*
+*Ejemplo:* /precio *11050 1 10000 3 10050 2*
 
 *Para enviar la cotización a un vendedor:*
 Después de hacer tu cotización, usa el comando: 
@@ -675,12 +675,12 @@ Para consultar el precio general de un producto, escribe:
 Para cotizaciones rápidas, escribe:
 /preciog *CódigoProducto1, cantidad, CódigoProductoN, cantidad*
 
-*Ejemplo:* /preciog *11050 10000 3 10050 2*
+*Ejemplo:* /preciog *11050, 1, 10000, 3, 10050, 2*
 
 También  puedes hacer la misma consulta de la siguiente manera:
 /preciog *CódigoProducto1 cantidad CódigoProductoN cantidad*
 
-*Ejemplo:* /preciog *11050 10000 3 10050 2*
+*Ejemplo:* /preciog *11050 1 10000 3 10050 2*
 
 *Para enviar la cotización a un vendedor:*
 Después de hacer tu cotización, usa el comando: 
@@ -858,7 +858,7 @@ Te notificaremos tan pronto como sea procesada.`;
         }
 
         if (args.length === 0) {
-            return `💱 *Consulta de Precios en Divisas*\n\nEste comando muestra el precio en divisas de un producto.\n\nPara consultar el precio de un producto específico, escribe:\n/divisas *Código Producto*\n\n*Ejemplo:* /divisas *11050*\n\n\nPara cotizaciones rápidas, escribe:\n/divisas *CódigoProducto1, cantidad, CódigoProductoN, cantidad*\n\n*Ejemplo:* /divisas *11050, 10000, 3, 10050, 2*\n\nTambién  puedes hacer la misma consulta de la siguiente manera:\n/divisas *CódigoProducto1 cantidad CódigoProductoN cantidad*\n\n*Ejemplo:* /divisas *11050 10000 3 10050 2*\n\n*Para enviar la cotización a un vendedor:*\nDespués de hacer tu cotización, usa el comando: \n/enviar *Nombre del Vendedor*\n\n*NOTAS:*\nSe permiten máximo 20 productos para la cotización rápida.\nSi no se indica la cantidad, se asume que es 1.`;
+            return `💱 *Consulta de Precios en Divisas*\n\nEste comando muestra el precio en divisas de un producto.\n\nPara consultar el precio de un producto específico, escribe:\n/divisas *Código Producto*\n\n*Ejemplo:* /divisas *11050*\n\n\nPara cotizaciones rápidas, escribe:\n/divisas *CódigoProducto1, cantidad, CódigoProductoN, cantidad*\n\n*Ejemplo:* /divisas *11050, 1, 10000, 3, 10050, 2*\n\nTambién  puedes hacer la misma consulta de la siguiente manera:\n/divisas *CódigoProducto1 cantidad CódigoProductoN cantidad*\n\n*Ejemplo:* /divisas *11050 1 10000 3 10050 2*\n\n*Para enviar la cotización a un vendedor:*\nDespués de hacer tu cotización, usa el comando: \n/enviar *Nombre del Vendedor*\n\n*NOTAS:*\nSe permiten máximo 20 productos para la cotización rápida.\nSi no se indica la cantidad, se asume que es 1.`;
         }
 
         // Se delega toda la lógica de cotización a _handleMultiDivisaQuote
