@@ -48,12 +48,15 @@ const config = {
 
     // Mensajes personalizados
     mensajes: {
-        saludo: `¡Hola 👋!
+        saludo: `¡Hola! 👋
 
 Bienvenido al servicio automatizado de consulta de precios. 
 
 Actualmente trabajo con el *Catálogo de precios v${process.env.CATALOG_VERSION || '1.0'}*
 Asegúrate de tener el catálogo a mano para poder ayudarte.
+
+Acá te dejo en enlace de descarga del catálogo:
+${process.env.CATALOG_DOWNLOAD_LINK || 'https://www.dropbox.com/scl/fi/c2zahk30ats86o2r0vrdp/Catalogo-ACDC-Consultar-V-2.7.pdf?rlkey=ub3vuqtsveamu0ulnddtjd5fz&dl=0'}
 
 Para consulta de precios usa el siguiente comando:
 */precio código* - Consulta del precio de un producto específico
@@ -63,7 +66,7 @@ Para consulta de precios usa el siguiente comando:
 
 Escribe */precio* sin ningún código y obtendrás más información sobre este comando.
 
-Puedes escribir /ayuda para ver todas las opciones disponibles.`,
+Puedes escribir */ayuda* para ver todas las opciones disponibles.`,
 
         despedida: `¡De nada! 😊 
 
