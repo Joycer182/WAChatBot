@@ -21,13 +21,13 @@ const PORT = config.bot.port;
 
 // 2. Configurar CORS de forma segura y flexible
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || config.bot.corsOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Acceso no permitido por CORS'));
+    origin: (origin, callback) => {
+        if (!origin || config.bot.corsOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Acceso no permitido por CORS'));
+        }
     }
-  }
 };
 app.use(cors(corsOptions));
 
@@ -60,13 +60,13 @@ let commandManager;
 function logMessage(message, type = 'info') {
     const timestamp = new Date().toISOString();
     const logEntry = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
-    
+
     // Crear directorio de logs si no existe
     const logsDir = path.join(__dirname, 'data', 'logs');
     if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir);
     }
-    
+
     // Escribir log
     fs.appendFileSync(path.join(logsDir, 'chatbot.log'), logEntry);
     console.log(logEntry.trim());
@@ -85,19 +85,19 @@ function saveConversation(contact, message, isFromBot = false) {
         isFromBot,
         messageType: message.type
     };
-    
+
     const conversationsDir = path.join(__dirname, 'data', 'conversations');
     if (!fs.existsSync(conversationsDir)) {
         fs.mkdirSync(conversationsDir);
     }
-    
+
     const conversationFile = path.join(conversationsDir, `${contact.number.replace('+', '')}.json`);
-    
+
     let conversations = [];
     if (fs.existsSync(conversationFile)) {
         conversations = JSON.parse(fs.readFileSync(conversationFile, 'utf8'));
     }
-    
+
     conversations.push(conversationEntry);
     fs.writeFileSync(conversationFile, JSON.stringify(conversations, null, 2));
 }
@@ -105,17 +105,17 @@ function saveConversation(contact, message, isFromBot = false) {
 // Función para respuestas automáticas inteligentes
 function getAutoResponse(message, contact) {
     const text = message.body.toLowerCase();
-    
+
     // Saludos
     if (config.palabrasClave.saludos.some(keyword => text.includes(keyword))) {
         return config.mensajes.saludo.replace('cliente', contact.pushname || 'cliente');
     }
-    
+
     // Despedidas
     if (config.palabrasClave.despedidas.some(keyword => text.includes(keyword))) {
         return config.mensajes.despedida;
     }
-    
+
     // Consultas sobre precios
     if (config.palabrasClave.precios.some(keyword => text.includes(keyword))) {
         return `💰 *Información de Precios*
@@ -128,7 +128,7 @@ Para obtener información detallada sobre precios, puedes:
 
 • Usar */buscar [término]* - Buscar productos específicos según un término`;
     }
-    
+
     // Consultas sobre productos
     if (config.palabrasClave.productos.some(keyword => text.includes(keyword))) {
         return `🛍️ *Nuestros Productos*
@@ -140,7 +140,7 @@ También puedes:
 
 /precio *[código]* - Consultar producto por código`;
     }
-    
+
     // Consultas sobre horarios
     if (config.palabrasClave.horarios.some(keyword => text.includes(keyword))) {
         return `🕒 *Horarios de Atención*
@@ -154,7 +154,7 @@ ${config.horarios.domingos} (Domingos)
 
 ¿Necesitas atención fuera de estos horarios?`;
     }
-    
+
     // Problemas o quejas
     if (config.palabrasClave.problemas.some(keyword => text.includes(keyword))) {
         return `🛠️ *Soporte Técnico*
@@ -167,7 +167,7 @@ Lamento escuchar que tienes un problema. Para ayudarte mejor:
 
 Escribe a tu vendedor para más información.`;
     }
-    
+
     // Búsquedas
     if (config.palabrasClave.busqueda.some(keyword => text.includes(keyword))) {
         return `🔍 *Búsqueda de Productos*
@@ -182,7 +182,7 @@ Para buscar productos específicos, puedes usar:
 
 *Ejemplo:* /buscar breaker 2x20A`;
     }
-    
+
     return null;
 }
 
@@ -246,10 +246,10 @@ client.on('message', async (message) => {
 
         // Ignorar mensajes del bot mismo
         if (message.fromMe) return;
-        
+
         // Ignorar mensajes de grupos por ahora
         if (message.from.includes('@g.us')) return;
-        
+
         // Asegurarse de que los managers estén listos
         if (!commandManager || !productManager) {
             logMessage('Managers no inicializados. Ignorando mensaje.', 'warn');
@@ -270,12 +270,12 @@ client.on('message', async (message) => {
             commandManager.setClientType(contact.number, config.productos.defaultClientType);
         }
         // --- FIN NUEVA LÓGICA ---
-        
+
         // Guardar conversación
         saveConversation(contact, message, false);
-        
+
         let response;
-        
+
         // Procesar comandos primero
         if (message.body.startsWith('/')) {
             response = await commandManager.processCommand(message, contact);
@@ -289,7 +289,7 @@ client.on('message', async (message) => {
             // Respuestas automáticas
             response = getAutoResponse(message, contact);
         }
-        
+
         // Si no hay respuesta, usar el mensaje por defecto
         if (response === null || response === undefined) {
             // Si no se entiende el mensaje, mostrar la ayuda directamente.
@@ -320,7 +320,7 @@ client.on('message', async (message) => {
             type: 'text'
         };
         saveConversation(contact, botMessage, true);
-        
+
     } catch (error) {
         console.error('Error procesando mensaje:', error);
         logMessage(`Error procesando mensaje: ${error.message}`, 'error');
@@ -410,7 +410,7 @@ async function main() {
 process.on('SIGINT', async () => {
     console.log('\n🛑 Cerrando bot...');
     logMessage('Bot cerrando por solicitud del usuario');
-    
+
     try {
         await client.destroy();
         process.exit(0);

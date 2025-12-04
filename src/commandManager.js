@@ -130,13 +130,13 @@ class CommandManager {
     initializeCommands() {
         this.registerCommand('help', this.handleHelp.bind(this));
         this.registerCommand('ayuda', this.handleHelp.bind(this));
-        
+
         this.registerCommand('info', this.handleInfo.bind(this));
         this.registerCommand('informacion', this.handleInfo.bind(this));
-        
+
         this.registerCommand('horario', this.handleHorarios.bind(this));
         this.registerCommand('horarios', this.handleHorarios.bind(this));
-        
+
         this.registerCommand('producto', this.handleProductos.bind(this));
         this.registerCommand('productos', this.handleProductos.bind(this));
 
@@ -144,10 +144,10 @@ class CommandManager {
         this.registerCommand('categoría', this.handleCategorias.bind(this));
         this.registerCommand('categorias', this.handleCategorias.bind(this));
         this.registerCommand('categoria', this.handleCategorias.bind(this));
-        
+
         this.registerCommand('buscar', this.handleBuscar.bind(this));
         this.registerCommand('search', this.handleBuscar.bind(this));
-        
+
         // El comando principal para precios y cotizaciones ahora es /precio
         this.registerCommand('precio', this.handlePrecio.bind(this));
         this.registerCommand('precios', this.handlePrecio.bind(this));
@@ -160,7 +160,7 @@ class CommandManager {
         this.registerCommand(this.clientTypes.TIENDA.toLowerCase(), this.handleTienda.bind(this));
         this.registerCommand(this.clientTypes.INSTALADOR.toLowerCase(), this.handleInstalador.bind(this));
         this.registerCommand(this.clientTypes.GENERAL.toLowerCase(), this.handleGeneral.bind(this));
-        
+
         // Comandos de administración
         this.registerCommand('stats', this.handleStats.bind(this));
 
@@ -212,7 +212,7 @@ class CommandManager {
         // Retorna el tipo de cliente por defecto si no se ha establecido uno
         return config.productos.defaultClientType;
     }
-    
+
     // Verificar si un contacto es un vendedor
     isVendedor(contact) {
         return Array.from(this.vendedores.values()).includes(contact.number);
@@ -221,7 +221,7 @@ class CommandManager {
     // Comando de ayuda
     async handleHelp(args, contact) {
         const clientType = this.getClientType(contact);
-        
+
         return `🤖 *Bot de Atención al Cliente*
 
 *Comandos generales:*
@@ -271,7 +271,7 @@ class CommandManager {
     async handleProductos(args, contact) {
         const clientType = this.getClientType(contact);
         const stats = this.productManager.getStats();
-        
+
         return `🛍️ *Catálogo de Productos* *v${process.env.CATALOG_VERSION || '1.0'}*
 
 📊 *Estadísticas:*
@@ -287,7 +287,7 @@ class CommandManager {
     // Comando de categorías
     async handleCategorias(args, contact) {
         const categories = this.productManager.getCategories();
-        
+
         if (categories.length === 0) {
             return `📂 *Categorías de Productos*
 
@@ -305,7 +305,7 @@ Usa /productos para ver más información.`;
 /buscar *Nombre de Categoría*
 
 *Ejemplo:* /buscar protectores`;
-        
+
         return response;
     }
 
@@ -344,7 +344,7 @@ No se encontraron productos que coincidan con tu búsqueda.
         results.slice(0, 10).forEach((product, index) => {
             const productInfo = this.productManager.getProductInfo(product, clientType);
             response += `${index + 1}️⃣ *${productInfo.codigo}* - ${productInfo.descripcion}\n`;
-            response += `   📂 ${productInfo.categoria} | 💰 ${productInfo.precio}\n\n`;
+            response += `💰 ${productInfo.precio}\n\n`;
         });
 
         if (results.length > 10) {
@@ -353,7 +353,7 @@ No se encontraron productos que coincidan con tu búsqueda.
 
         response += `*Para ver detalles completos:*
 /precio [código del producto]`;
-        
+
         return response;
     }
 
@@ -699,7 +699,7 @@ Si no se indica la cantidad, se asume que es 1.`;
     async handleCodigoInfo(args, contact) {
         const clientType = this.getClientType(contact);
         const stats = this.productManager.getStats();
-        
+
         return `💰 *Información de Precios*
 
 *Tu tipo de cliente actual es:* ${clientType.toUpperCase()}
@@ -738,7 +738,7 @@ Si no se indica la cantidad, se asume que es 1.`;
                 const chatId = `${vendedorNumber}@c.us`;
                 // Enviar mensajes por separado para facilitar el copiado y pegado
                 await this.client.sendMessage(chatId, infoMessage);
-                
+
                 // Enviamos el comando de aprobación en un mensaje separado
                 const approveMsg = await this.client.sendMessage(chatId, approveCommand);
                 // No necesitamos registrar el ID de este mensaje para el eco, ya que el vendedor lo copiará, no lo reenviará.
@@ -825,7 +825,7 @@ Te notificaremos tan pronto como sea procesada.`;
     // Comando de estadísticas
     async handleStats(args, contact) {
         const stats = this.productManager.getStats();
-        
+
         return `📊 *Estadísticas del Sistema*
 
 *Productos:*
@@ -893,7 +893,7 @@ Te notificaremos tan pronto como sea procesada.`;
             // El número del vendedor debe estar en formato internacional con @c.us
             const chatId = `${vendedorNumber}@c.us`;
             const sentMessage = await this.client.sendMessage(chatId, messageToVendedor);
-            
+
             // Devolver el ID del mensaje enviado para evitar que el bot reaccione a él
             this.lastQuote.delete(contact.number);
             return { response: `✅ ¡Éxito! Tu cotización ha sido enviada a *${vendedorName}*. Pronto se pondrá en contacto contigo.`, sentMessageId: sentMessage.id._serialized };
@@ -970,7 +970,7 @@ Te notificaremos tan pronto como sea procesada.`;
                 const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'America/Caracas' };
                 response += `\n*Actualizado:* ${updateDate.toLocaleString('es-VE', options)}\n`;
             }
-            
+
             response += `\nFuente: Banco Central de Venezuela (BCV)`
 
             return response;
