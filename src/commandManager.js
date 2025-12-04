@@ -341,14 +341,14 @@ No se encontraron productos que coincidan con tu búsqueda.
         let response = `🔍 *Búsqueda: "${searchTerm}"*\n\n`;
         response += `*Encontrados ${results.length} producto(s):*\n\n`;
 
-        results.slice(0, 10).forEach((product, index) => {
+        results.slice(0, 20).forEach((product, index) => {
             const productInfo = this.productManager.getProductInfo(product, clientType);
             response += `${index + 1}️⃣ *${productInfo.codigo}* - ${productInfo.descripcion}\n`;
             response += `💰 ${productInfo.precio}\n\n`;
         });
 
-        if (results.length > 10) {
-            response += `... y ${results.length - 10} producto(s) más.\n\n`;
+        if (results.length > 20) {
+            response += `... y ${results.length - 20} producto(s) más.\n\n`;
         }
 
         response += `*Para ver detalles completos:*
