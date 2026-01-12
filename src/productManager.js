@@ -91,9 +91,7 @@ class ProductManager {
         this.checkForUpdates();
         const searchTerm = query.toLowerCase();
         return this.products.filter(product => 
-            product.descripcion.toLowerCase().includes(searchTerm) ||
-            product.categoria.toLowerCase().includes(searchTerm)
-        );
+            product.descripcion.toLowerCase().includes(searchTerm));
     }
 
     // Obtener todas las categorías únicas
