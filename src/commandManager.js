@@ -323,9 +323,17 @@ Para buscar productos, escribe:
 /buscar wifi`;
         }
 
-        const searchTerm = args.join(' ');
-        const results = this.productManager.searchProducts(searchTerm);
         const clientType = this.getClientType(contact);
+        const searchTerm = args.join(' ');
+
+        // Búsqueda mejorada: permite palabras en cualquier orden
+        const searchTerms = args.filter(arg => arg.trim() !== '').map(term => term.toLowerCase());
+        const allProducts = this.productManager.getAllProductsForClient(clientType);
+
+        const results = allProducts.filter(product => {
+            const textToSearch = `${product.codigo} ${product.descripcion}`.toLowerCase();
+            return searchTerms.every(term => textToSearch.includes(term));
+        });
 
         if (results.length === 0) {
             return `🔍 *Búsqueda: "${searchTerm}"*
