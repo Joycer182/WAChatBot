@@ -126,6 +126,20 @@ class CommandManager {
         console.log(`📈 Cotización registrada. Total: ${this.botStats.totalQuotes}. Tipo: ${type || 'N/A'}. Total por tipo: ${typeCount}`);
     }
 
+    // Helper para enviar mensajes de forma segura
+    async sendMessageSafe(chatId, content, options = {}) {
+        try {
+            return await this.client.sendMessage(chatId, content, { linkPreview: false, ...options });
+        } catch (error) {
+            if (error.message && (error.message.includes('markedUnread') || error.message.includes('Evaluation failed'))) {
+                console.log(`Advertencia: Error conocido '${error.message}' ignorado. Se asume enviado.`);
+                // Devolvemos un objeto mock para evitar que el código que espera 'id._serialized' falle
+                return { id: { _serialized: `mock_msg_${Date.now()}` } };
+            }
+            throw error;
+        }
+    }
+
     // Inicializar todos los comandos
     initializeCommands() {
         this.registerCommand('help', this.handleHelp.bind(this));
@@ -745,14 +759,14 @@ Si no se indica la cantidad, se asume que es 1.`;
             try {
                 const chatId = `${vendedorNumber}@c.us`;
                 // Enviar mensajes por separado para facilitar el copiado y pegado
-                await this.client.sendMessage(chatId, infoMessage);
+                await this.sendMessageSafe(chatId, infoMessage);
 
                 // Enviamos el comando de aprobación en un mensaje separado
-                const approveMsg = await this.client.sendMessage(chatId, approveCommand);
+                const approveMsg = await this.sendMessageSafe(chatId, approveCommand);
                 // No necesitamos registrar el ID de este mensaje para el eco, ya que el vendedor lo copiará, no lo reenviará.
 
                 // Enviamos el comando de rechazo en un mensaje separado
-                const rejectMsg = await this.client.sendMessage(chatId, rejectCommand);
+                const rejectMsg = await this.sendMessageSafe(chatId, rejectCommand);
 
                 console.log(`Solicitud de aprobación enviada al vendedor ${vendedorName} en mensajes separados.`);
             } catch (error) {
@@ -801,7 +815,7 @@ Te notificaremos tan pronto como sea procesada.`;
         this.pendingApprovals.delete(clientNumber); // Eliminar la solicitud pendiente
 
         const confirmationToClient = `🎉 ¡Tu solicitud ha sido aprobada! 🎉\n\nAhora tienes acceso a los precios de *${newType.toUpperCase()}*.`;
-        await this.client.sendMessage(clientChatId, confirmationToClient);
+        await this.sendMessageSafe(clientChatId, confirmationToClient);
 
         return `✅ Solicitud del cliente ${clientNumber} aprobada. Se le ha asignado el tipo *${newType.toUpperCase()}*.`;
     }
@@ -825,7 +839,7 @@ Te notificaremos tan pronto como sea procesada.`;
         this.pendingApprovals.delete(clientNumber); // Eliminar la solicitud pendiente
 
         const rejectionToClient = `Lo sentimos, tu solicitud de cambio de tipo de cliente ha sido rechazada. Por favor, contacta a un vendedor para más información.`;
-        await this.client.sendMessage(clientChatId, rejectionToClient);
+        await this.sendMessageSafe(clientChatId, rejectionToClient);
 
         return `🚫 Solicitud del cliente ${clientNumber} ha sido rechazada y notificada.`;
     }
@@ -900,7 +914,7 @@ Te notificaremos tan pronto como sea procesada.`;
         try {
             // El número del vendedor debe estar en formato internacional con @c.us
             const chatId = `${vendedorNumber}@c.us`;
-            const sentMessage = await this.client.sendMessage(chatId, messageToVendedor);
+            const sentMessage = await this.sendMessageSafe(chatId, messageToVendedor);
 
             // Devolver el ID del mensaje enviado para evitar que el bot reaccione a él
             this.lastQuote.delete(contact.number);

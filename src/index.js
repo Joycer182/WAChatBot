@@ -223,6 +223,21 @@ client.on('disconnected', (reason) => {
     logMessage(`Cliente desconectado: ${reason}`, 'warn');
 });
 
+// Función auxiliar para enviar mensajes ignorando el error 'markedUnread'
+async function sendMessageSafe(chatId, content, options = {}) {
+    try {
+        await client.sendMessage(chatId, content, { linkPreview: false, ...options });
+    } catch (error) {
+        if (error.message && (error.message.includes('markedUnread') || error.message.includes('Evaluation failed'))) {
+            // El mensaje generalmente se envía correctamente antes de este error de la librería.
+            // Ignoramos el error para evitar reintentos duplicados o fallos fatales.
+            logMessage(`Advertencia: Error conocido '${error.message}' ignorado. Se asume que el mensaje fue enviado.`, 'warn');
+        } else {
+            throw error;
+        }
+    }
+}
+
 // Manejo de mensajes
 client.on('message', async (message) => {
     // Ignorar mensajes de estado
@@ -256,6 +271,29 @@ client.on('message', async (message) => {
             return;
         }
 
+        // Intentar marcar el mensaje como leído
+        try {
+            await client.pupPage.evaluate(async (chatId) => {
+                let chat = window.Storage && window.Storage.Chat ? window.Storage.Chat.get(chatId) : null;
+                
+                if (!chat && window.Storage && window.Storage.Chat && window.Storage.Chat.find) {
+                    chat = await window.Storage.Chat.find(chatId);
+                }
+
+                if (chat) {
+                    if (typeof chat.markSeen === 'function') {
+                        await chat.markSeen();
+                    } else if (typeof chat.sendSeen === 'function') {
+                        await chat.sendSeen();
+                    } else if (window.Storage && window.Storage.Cmd && window.Storage.Cmd.markChatUnread) {
+                        await window.Storage.Cmd.markChatUnread(chat, false);
+                    }
+                }
+            }, message.from);
+        } catch (error) {
+            // Ignorar errores no críticos al marcar como leído
+        }
+
         const contact = await message.getContact();
         logMessage(`Mensaje recibido de ${contact.pushname || contact.number}: ${message.body}`);
 
@@ -263,7 +301,7 @@ client.on('message', async (message) => {
         const isNewClient = !commandManager.clientStates.has(contact.number);
         if (isNewClient) {
             const welcomeMessage = config.mensajes.saludo.replace('cliente', contact.pushname || 'cliente');
-            await message.reply(welcomeMessage);
+            await sendMessageSafe(message.from, welcomeMessage);
             logMessage(`Mensaje de bienvenida enviado a nuevo cliente: ${contact.pushname || contact.number}`);
 
             // Establecer el tipo de cliente por defecto y guardarlo usando el nuevo método
@@ -292,6 +330,11 @@ client.on('message', async (message) => {
 
         // Si no hay respuesta, usar el mensaje por defecto
         if (response === null || response === undefined) {
+            // Si es un cliente nuevo, ya recibió un saludo. No enviar "mensaje no entendido".
+            if (isNewClient) {
+                logMessage(`Primer mensaje de ${contact.pushname || contact.number} no era un comando, se omite respuesta de "no entendido".`);
+                return;
+            }
             // Si no se entiende el mensaje, mostrar la ayuda directamente.
             const helpMessage = await commandManager.handleHelp([], contact);
             response = `${config.mensajes.noEntendido}\n\n${helpMessage}`;
@@ -302,11 +345,11 @@ client.on('message', async (message) => {
         // Manejar diferentes tipos de respuesta (texto, media, objeto con respuesta)
         if (typeof response === 'object' && response.media) {
             // Es un objeto con media y caption (para /foto)
-            await message.reply(response.media, undefined, { caption: response.caption });
+            await sendMessageSafe(message.from, response.media, { caption: response.caption });
             botMessageBody = `[Imagen: ${response.caption}]`;
         } else if (typeof response === 'string') {
             // Es una respuesta de texto simple
-            await message.reply(response);
+            await sendMessageSafe(message.from, response);
             botMessageBody = response;
         } else {
             // Otro tipo de objeto (como el de /enviar) que ya fue manejado
