@@ -340,12 +340,15 @@ Para buscar productos, escribe:
         const clientType = this.getClientType(contact);
         const searchTerm = args.join(' ');
 
+        // Función para normalizar texto (eliminar acentos y convertir a minúsculas)
+        const normalizeText = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
         // Búsqueda mejorada: permite palabras en cualquier orden
-        const searchTerms = args.filter(arg => arg.trim() !== '').map(term => term.toLowerCase());
+        const searchTerms = args.filter(arg => arg.trim() !== '').map(term => normalizeText(term));
         const allProducts = this.productManager.getAllProductsForClient(clientType);
 
         const results = allProducts.filter(product => {
-            const textToSearch = `${product.codigo} ${product.descripcion}`.toLowerCase();
+            const textToSearch = normalizeText(`${product.codigo} ${product.descripcion}`);
             return searchTerms.every(term => textToSearch.includes(term));
         });
 
