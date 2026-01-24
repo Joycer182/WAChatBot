@@ -11,6 +11,7 @@ Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención
   - **Mecanismo de Recuperación**: Si el bot estuvo inactivo durante la ventana de actualización, al reactivarse detecta que no tiene la tasa del día y realiza la consulta para ponerse al día. Esto minimiza las llamadas a la API fuera de hora, pero garantiza que la tasa esté siempre vigente.
   - **Resiliencia ante Fallos (Timeout & Fallback)**: Se implementó un timeout de 5 segundos para las consultas al BCV. Si la página tarda en responder o está caída, el bot evita quedarse "colgado" y automáticamente utiliza la última tasa exitosa almacenada en caché, advirtiendo al usuario que la información podría no estar actualizada.
   - **Actualización Manual de Tasas (Contingencia)**: Permite a los vendedores autorizados establecer manualmente las tasas de cambio mediante un comando. Esta función es vital cuando la página del BCV presenta fallas prolongadas. Las tasas manuales son utilizadas por el sistema hasta que se logra una conexión exitosa con el BCV, momento en el cual la tasa oficial toma prioridad nuevamente.
+  - **Calculadora de Divisas**: El comando `/bcv` funciona también como una calculadora rápida. Al enviar `/bcv 100`, el bot responde con la conversión de ese monto a Bolívares usando tanto la tasa del Dólar como la del Euro.
 - **Múltiples Tipos de Cliente**: Precios diferenciados para Tiendas, Instaladores y Clientes Generales
 - **Flujo de Aprobación para Tipos de Cliente**: Implementa un proceso de aprobación por parte de los vendedores para los cambios de tipo de cliente (Tienda, Instalador, General), asegurando un control y gestión adecuados.
 - **Mensaje de Bienvenida Automático**: Saluda a los nuevos usuarios en su primera interacción, independientemente del mensaje que envíen, y los registra automáticamente con un tipo de cliente predeterminado, mejorando la experiencia inicial.
@@ -118,7 +119,9 @@ npm run dev
 - `/help` o `/ayuda` - Muestra el menú de ayuda
 - `/info` o `/informacion` - Información de contacto
 - `/horarios` - Horarios de atención
-- `/bcv` - Muestra la tasa de cambio del BCV
+- `/bcv [monto]` - Muestra la tasa de cambio del BCV.
+  - **Uso simple**: `/bcv` muestra las tasas actuales.
+  - **Calculadora**: `/bcv 100` o `/bcv 12,50` calcula el valor en Bolívares para la cantidad ingresada (USD y EUR).
 
 ### Comandos de Productos
 - `/productos` - Información del catálogo

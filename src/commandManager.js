@@ -981,6 +981,49 @@ Te notificaremos tan pronto como sea procesada.`;
         try {
             const { dolar, euro, lastUpdated, updateFailed } = await getBcvRates();
 
+            // 2. Verificamos si hay argumentos para usar la calculadora
+            let montoACalcular = null;
+            if (args.length > 0) {
+                // Reemplazamos coma por punto y parseamos
+                const montoLimpio = args[0].replace(',', '.');
+                const numero = parseFloat(montoLimpio);
+                if (!isNaN(numero)) {
+                    montoACalcular = numero;
+                }
+            }
+
+            // --- ESCENARIO 1: MODO CALCULADORA ---
+            if (montoACalcular !== null) {
+                let response = `🧮 *Calculadora BCV*\n`;
+                response += `Cantidad: *${montoACalcular}*\n\n`;
+
+                if (updateFailed) {
+                    response += `⚠️ *Nota:* Calculado con tasas de respaldo (BCV caído).\n\n`;
+                }
+
+                // Cálculo Dólar
+                if (dolar && dolar !== -1) {
+                    const totalBs = montoACalcular * dolar;
+                    response += `🇺🇸 *USD:* ${totalBs.toFixed(2)} Bs.\n`;
+                    response += `_(Tasa: ${dolar.toFixed(2)})_\n\n`;
+                }
+
+                // Cálculo Euro
+                if (euro && euro !== -1) {
+                    const totalBs = montoACalcular * euro;
+                    response += `🇪🇺 *EUR:* ${totalBs.toFixed(2)} Bs.\n`;
+                    response += `_(Tasa: ${euro.toFixed(2)})_\n`;
+                }
+                
+                // Agregamos fecha al final
+                if (lastUpdated) {
+                    const dateStr = new Date(lastUpdated).toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+                    response += `\n📅 ${dateStr}`;
+                }
+
+                return response;
+            }
+
             let response = `🏦 *Tasa de Cambio del BCV*\n\n`;
 
             if (updateFailed) {
