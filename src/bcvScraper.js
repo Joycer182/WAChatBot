@@ -152,6 +152,22 @@ async function _extraerValorPaginaBCV(moneda) {
 }
 
 /**
+ * Permite establecer manualmente las tasas de cambio.
+ * Útil para contingencias cuando la página del BCV está caída.
+ * @param {number} dolar - Tasa del dólar
+ * @param {number} euro - Tasa del euro
+ */
+export function setManualRates(dolar, euro) {
+    cache.dolar = dolar;
+    cache.euro = euro;
+    cache.lastUpdated = getVenezuelaTime().toISOString();
+
+    saveCache(); // Guardar el nuevo caché en el archivo
+
+    console.log(`⚠️ Tasas actualizadas manualmente por operador: USD ${dolar} | EUR ${euro}`);
+}
+
+/**
  * Obtiene las tasas de cambio del BCV, usando un sistema de caché inteligente.
  * @returns {Promise<{dolar: number, euro: number, lastUpdated: string, updateFailed: boolean}>}
  */

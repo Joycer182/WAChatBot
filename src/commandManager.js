@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import whatsapp from 'whatsapp-web.js';
 import config from './config.js';
-import { getBcvRates } from './bcvScraper.js';
+import { getBcvRates, setManualRates } from './bcvScraper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -191,6 +191,7 @@ class CommandManager {
         this.registerCommand('rechazar', this.handleRechazar.bind(this));
 
         this.registerCommand('bcv', this.handleBcv.bind(this));
+        this.registerCommand('actualizarbcv', this.handleActualizarBcv.bind(this));
 
         // Nuevo comando para precios generales
         this.registerCommand('preciog', this.handlePrecioGeneral.bind(this));
@@ -1010,6 +1011,47 @@ Te notificaremos tan pronto como sea procesada.`;
         } catch (error) {
             console.error("Error al obtener las tasas del BCV:", error);
             return "❌ Ocurrió un error al consultar las tasas de cambio. Por favor, intenta de nuevo más tarde.";
+        }
+    }
+
+    // Comando para actualizar manualmente las tasas del BCV
+    async handleActualizarBcv(args, contact) {
+        // 1. Seguridad: Solo vendedores pueden usar esto
+        if (!this.isVendedor(contact)) {
+            return `❌ *Acceso Denegado*\nEste comando es exclusivo para vendedores autorizados.`;
+        }
+
+        // 2. Validación: Deben llegar exactamente 2 argumentos (USD y EUR)
+        if (args.length < 2) {
+            return `❌ *Error de Formato*\n\nDebes ingresar ambas tasas para realizar la actualización.\n\n*Uso correcto:*\n/actualizarbcv <TasaUSD> <TasaEUR>\n\n*Ejemplo:*\n/actualizarbcv 36.50 39.10`;
+        }
+
+        // 3. Normalización de decimales (Reemplazar coma por punto)
+        const rawDolar = args[0].replace(',', '.');
+        const rawEuro = args[1].replace(',', '.');
+
+        const nuevoDolar = parseFloat(rawDolar);
+        const nuevoEuro = parseFloat(rawEuro);
+
+        // 4. Validación numérica
+        if (isNaN(nuevoDolar) || isNaN(nuevoEuro)) {
+            return `❌ *Valores Inválidos*\n\nPor favor verifica que las tasas ingresadas sean números válidos.\nRecibido: USD="${args[0]}", EUR="${args[1]}"`;
+        }
+
+        // 5. Ejecución
+        try {
+            setManualRates(nuevoDolar, nuevoEuro);
+            
+            const fecha = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
+            
+            return `✅ *Tasas Actualizadas Manualmente*\n\n` +
+                   `💵 *Dólar:* ${nuevoDolar.toFixed(2)} Bs.\n` +
+                   `💶 *Euro:* ${nuevoEuro.toFixed(2)} Bs.\n` +
+                   `📅 *Fecha:* ${fecha}\n\n` +
+                   `⚠️ _Estos valores se usarán mientras la página del BCV no responda o hasta la próxima actualización oficial._`;
+        } catch (error) {
+            console.error("Error al establecer tasas manuales:", error);
+            return `❌ Ocurrió un error interno al intentar guardar las tasas.`;
         }
     }
 
