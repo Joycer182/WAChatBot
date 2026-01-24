@@ -9,6 +9,7 @@ Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención
   - **Actualización Diaria Asegurada**: Si la tasa en caché es de un día anterior, se actualiza automáticamente.
   - **Captura Agresiva**: Durante la ventana de publicación del BCV (3-6 PM VET), el bot consulta constantemente para obtener la nueva tasa apenas esté disponible.
   - **Mecanismo de Recuperación**: Si el bot estuvo inactivo durante la ventana de actualización, al reactivarse detecta que no tiene la tasa del día y realiza la consulta para ponerse al día. Esto minimiza las llamadas a la API fuera de hora, pero garantiza que la tasa esté siempre vigente.
+  - **Resiliencia ante Fallos (Timeout & Fallback)**: Se implementó un timeout de 5 segundos para las consultas al BCV. Si la página tarda en responder o está caída, el bot evita quedarse "colgado" y automáticamente utiliza la última tasa exitosa almacenada en caché, advirtiendo al usuario que la información podría no estar actualizada.
 - **Múltiples Tipos de Cliente**: Precios diferenciados para Tiendas, Instaladores y Clientes Generales
 - **Flujo de Aprobación para Tipos de Cliente**: Implementa un proceso de aprobación por parte de los vendedores para los cambios de tipo de cliente (Tienda, Instalador, General), asegurando un control y gestión adecuados.
 - **Mensaje de Bienvenida Automático**: Saluda a los nuevos usuarios en su primera interacción, independientemente del mensaje que envíen, y los registra automáticamente con un tipo de cliente predeterminado, mejorando la experiencia inicial.

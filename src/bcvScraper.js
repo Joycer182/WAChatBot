@@ -127,7 +127,8 @@ const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 async function _extraerValorPaginaBCV(moneda) {
   const sURL = "https://www.bcv.org.ve/";
   try {
-    const respuesta = await axios.get(sURL, { httpsAgent });
+    // Timeout de 5 segundos (5000ms) para evitar que el bot se cuelgue si el BCV no responde
+    const respuesta = await axios.get(sURL, { httpsAgent, timeout: 5000 });
     const html = respuesta.data;
     const $ = cheerio.load(html);
     const div = $('.col-sm-6.col-xs-6.centrado').eq(moneda);
@@ -152,7 +153,7 @@ async function _extraerValorPaginaBCV(moneda) {
 
 /**
  * Obtiene las tasas de cambio del BCV, usando un sistema de caché inteligente.
- * @returns {Promise<{dolar: number, euro: number}>}
+ * @returns {Promise<{dolar: number, euro: number, lastUpdated: string, updateFailed: boolean}>}
  */
 export async function getBcvRates() {
     if (shouldFetchNewRates()) {
@@ -169,17 +170,18 @@ export async function getBcvRates() {
             cache.lastUpdated = getVenezuelaTime().toISOString();
 
             saveCache(); // Guardar el nuevo caché en el archivo
+            return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated, updateFailed: false };
         } else {
             console.warn("No se pudo actualizar el caché porque una o más consultas al BCV fallaron.");
             if (cache.dolar && cache.euro) {
                 console.warn("Devolviendo valores antiguos del caché debido a un error de actualización.");
-                return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated };
+                // Retornamos la tasa antigua con la bandera updateFailed: true para que el bot pueda avisar al usuario
+                return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated, updateFailed: true };
             }
-            return { dolar: -1, euro: -1 };
+            return { dolar: -1, euro: -1, updateFailed: true };
         }
     } else {
         console.log("Devolviendo valores del caché.");
-        return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated };
+        return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated, updateFailed: false };
     }
-    return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated };
 }

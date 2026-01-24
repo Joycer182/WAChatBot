@@ -466,7 +466,7 @@ No se encontraron productos que coincidan con tu búsqueda.
         let notFoundItems = [];
         let totalPiezas = 0;
 
-        const { dolar } = await getBcvRates(); // Obtener dolar al principio
+        const { dolar, updateFailed, lastUpdated } = await getBcvRates(); // Obtener dolar al principio
 
         for (const item of items) {
             const product = this.productManager.getProductByCode(item.code);
@@ -495,6 +495,10 @@ No se encontraron productos que coincidan con tu búsqueda.
 
         if (dolar && dolar !== -1) { // Mostrar la tasa BCV aquí
             response += `*Tasa BCV (USD):* ${dolar.toFixed(2)} Bs.\n`;
+            if (updateFailed) {
+                const dateStr = lastUpdated ? new Date(lastUpdated).toLocaleDateString('es-VE') : 'N/A';
+                response += `⚠️ *Aviso:* No se pudo actualizar la tasa (BCV lento/caído). Usando valor del ${dateStr}.\n`;
+            }
         }
 
         if (dolar && dolar !== -1) {
@@ -974,9 +978,13 @@ Te notificaremos tan pronto como sea procesada.`;
     // Comando para obtener la tasa del BCV
     async handleBcv(args, contact) {
         try {
-            const { dolar, euro, lastUpdated } = await getBcvRates();
+            const { dolar, euro, lastUpdated, updateFailed } = await getBcvRates();
 
             let response = `🏦 *Tasa de Cambio del BCV*\n\n`;
+
+            if (updateFailed) {
+                response += `⚠️ *Aviso:* No se pudo conectar con el BCV. Se muestran los últimos valores registrados.\n\n`;
+            }
 
             if (dolar && dolar !== -1) {
                 response += `💵 *Dólar:* ${dolar.toFixed(2)} Bs.\n`;
