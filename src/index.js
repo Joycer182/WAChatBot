@@ -2,6 +2,7 @@ import 'dotenv/config'; // Carga las variables de entorno desde .env
 
 import whatsapp from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = whatsapp;
+import puppeteer from 'puppeteer'; // Mismo que usa whatsapp-web.js: usar su Chromium evita TargetCloseError con Chrome del sistema
 import qrcode from 'qrcode-terminal';
 import express from 'express';
 import cors from 'cors'; // 1. Importar la librería
@@ -35,14 +36,38 @@ app.use(cors(corsOptions));
 // Middleware para parsear JSON
 app.use(express.json());
 
-// Crear cliente de WhatsApp
+// Usar el Chromium que instala Puppeteer (evita incompatibilidad con Chrome del sistema, p. ej. 132+)
+let puppeteerExecutable;
+try {
+    puppeteerExecutable = puppeteer.executablePath();
+} catch (_) {
+    puppeteerExecutable = undefined;
+}
+
+// Crear cliente de WhatsApp con opciones de Puppeteer estables (evita TargetCloseError en Windows)
 const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: path.join(__dirname, 'data', '.wwebjs_auth')
     }),
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+    },
     puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        ...(puppeteerExecutable && { executablePath: puppeteerExecutable }),
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-first-run',
+            '--disable-software-rasterizer',
+            '--disable-extensions',
+            '--mute-audio',
+            '--disable-accelerated-2d-canvas',
+            '--no-zygote'
+        ]
     }
 });
 
@@ -444,8 +469,28 @@ async function main() {
         logMessage(`Servidor iniciado en puerto ${PORT}`);
     });
 
-    // 5. Inicializar el cliente de WhatsApp
-    client.initialize();
+    // 5. Inicializar el cliente de WhatsApp con reintentos (TargetCloseError es frecuente al arrancar Chrome)
+    const maxAttempts = 3;
+    const delayMs = 5000;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            console.log(`\n📱 Iniciando WhatsApp Web (intento ${attempt}/${maxAttempts})...`);
+            await client.initialize();
+            break;
+        } catch (err) {
+            const isTargetClosed = err.name === 'TargetCloseError' || (err.message && err.message.includes('Target closed'));
+            logMessage(`Error al inicializar WhatsApp: ${err.message}`, 'error');
+            if (attempt < maxAttempts && isTargetClosed) {
+                console.log(`\n⏳ Reintentando en ${delayMs / 1000}s...`);
+                await new Promise((r) => setTimeout(r, delayMs));
+            } else {
+                console.error('\n❌ No se pudo conectar con WhatsApp Web. Prueba:');
+                console.error('   1. Actualizar: npm install whatsapp-web.js@latest');
+                console.error('   2. Borrar caché de sesión: elimina la carpeta src/data/.wwebjs_auth y vuelve a ejecutar');
+                throw err;
+            }
+        }
+    }
 }
 
 
