@@ -119,7 +119,8 @@ class BotUtils {
     // Limpiar sesión (útil para problemas de autenticación)
     clearSession() {
         try {
-            const sessionDir = path.join(__dirname, '..', '.wwebjs_auth');
+            const sessionDir = path.join(__dirname, 'data', '.wwebjs_auth');
+            console.log(sessionDir);
             if (fs.existsSync(sessionDir)) {
                 fs.rmSync(sessionDir, { recursive: true, force: true });
                 console.log('✅ Sesión de WhatsApp limpiada');
