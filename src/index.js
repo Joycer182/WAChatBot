@@ -444,6 +444,20 @@ app.get('/products/search/:query', (req, res) => {
 async function main() {
     console.log('🔄 Inicializando el bot...');
 
+    // FIX: Eliminar el archivo de bloqueo de Chromium para evitar errores de "perfil en uso" en contenedores
+    const sessionAuthPath = path.join(__dirname, 'data', '.wwebjs_auth');
+    const lockfilePath = path.join(sessionAuthPath, 'SingletonLock');
+    if (fs.existsSync(lockfilePath)) {
+        try {
+            fs.unlinkSync(lockfilePath);
+            console.log('🧹 Archivo de bloqueo de Chromium (SingletonLock) eliminado.');
+            logMessage('Archivo SingletonLock eliminado para un inicio limpio.', 'info');
+        } catch (err) {
+            console.warn(`⚠️ No se pudo eliminar el archivo SingletonLock: ${err.message}`);
+            logMessage(`Advertencia: no se pudo eliminar SingletonLock: ${err.message}`, 'warn');
+        }
+    }
+
     // Verificar y crear vendedores.json si no existe
     const vendedoresFilePath = path.join(__dirname, 'data', 'vendedores.json');
     if (!fs.existsSync(vendedoresFilePath)) {
@@ -495,18 +509,23 @@ async function main() {
 
 
 // --- Manejo de cierre graceful ---
-process.on('SIGINT', async () => {
-    console.log('\n🛑 Cerrando bot...');
-    logMessage('Bot cerrando por solicitud del usuario');
+const handleShutdown = async (signal) => {
+    console.log(`\n🛑 Recibido ${signal}. Cerrando bot...`);
+    logMessage(`Bot cerrando por señal ${signal}`);
 
     try {
-        await client.destroy();
+        if (client) await client.destroy();
+        console.log('Cliente de WhatsApp desconectado.');
         process.exit(0);
     } catch (error) {
-        console.error('Error cerrando cliente:', error);
+        console.error('Error durante el cierre:', error);
+        logMessage(`Error durante el cierre: ${error.message}`, 'error');
         process.exit(1);
     }
-});
+};
+
+process.on('SIGINT', () => handleShutdown('SIGINT'));
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));
 
 // --- Iniciar la aplicación ---
 main();
