@@ -446,7 +446,9 @@ async function main() {
 
     // FIX: Eliminar el archivo de bloqueo de Chromium para evitar errores de "perfil en uso" en contenedores
     const sessionAuthPath = path.join(__dirname, 'data', '.wwebjs_auth');
-    const lockfilePath = path.join(sessionAuthPath, 'SingletonLock');
+    // El directorio de datos de Puppeteer es una subcarpeta, usualmente 'session-default'
+    const puppeteerDataPath = path.join(sessionAuthPath, 'session-default');
+    const lockfilePath = path.join(puppeteerDataPath, 'SingletonLock');
     if (fs.existsSync(lockfilePath)) {
         try {
             fs.unlinkSync(lockfilePath);
