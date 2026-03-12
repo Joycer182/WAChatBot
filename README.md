@@ -148,6 +148,11 @@ Los comandos para solicitar acceso a los diferentes tipos de precios se configur
   - **Uso simple**: `/divisas 11050`
   - **Cotización rápida**: `/divisas 11050 5 11030 2`
   - Funciona con la misma lógica de cotización y validación de errores que el comando `/precio`.
+- **Cotización con Comisión (Solo Instaladores)**: Permite a los instaladores agregar un margen de ganancia porcentual a las cotizaciones de forma invisible para el cliente final.
+  - **Uso**: `/precio [porcentaje]% [código] [cant] ...`
+  - **Ejemplo**: `/precio 20% 11050 1`
+  - **Resultado**: El precio del producto `11050` se incrementará en un 20% en la cotización final, sin mencionar el recargo.
+  - **Compatibilidad**: También funciona con el comando `/divisas`.
 
 ### Comandos Administrativos
 - `/stats` - Muestra estadísticas del sistema, incluyendo total de productos, desglose de cotizaciones y registros históricos.
