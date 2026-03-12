@@ -14,6 +14,7 @@ Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención
   - **Calculadora de Divisas**: El comando `/bcv` funciona también como una calculadora rápida. Al enviar `/bcv 100`, el bot responde con la conversión de ese monto a Bolívares usando tanto la tasa del Dólar como la del Euro.
 - **Múltiples Tipos de Cliente**: Precios diferenciados para Tiendas, Instaladores y Clientes Generales
 - **Flujo de Aprobación para Tipos de Cliente**: Implementa un proceso de aprobación por parte de los vendedores para los cambios de tipo de cliente (Tienda, Instalador, General), asegurando un control y gestión adecuados.
+- **Visor Web para QR**: Si el código QR no se muestra correctamente en la consola, se puede acceder a `http://localhost:3000/qr` para escanearlo desde una página web. El endpoint se deshabilita automáticamente una vez que la sesión está activa.
 - **Mensaje de Bienvenida Automático**: Saluda a los nuevos usuarios en su primera interacción, independientemente del mensaje que envíen, y los registra automáticamente con un tipo de cliente predeterminado, mejorando la experiencia inicial.
 - **Identificación Personalizada del Cliente**: Utiliza el nombre de perfil de WhatsApp (`pushname`) del cliente para una comunicación más personal y profesional, en lugar de depender del nombre guardado en los contactos del teléfono.
 - **Persistencia de Datos del Cliente**: Recuerda el tipo de cliente seleccionado por cada usuario entre reinicios.
@@ -110,7 +111,7 @@ npm run dev
 
 1. **Ejecuta el bot**: `npm start`
 2. **Escanea el QR**: Aparecerá un código QR en la consola
-3. **Escanea con WhatsApp**: Usa WhatsApp Web para escanear el código
+3. **Escanea con WhatsApp**: Usa WhatsApp Web para escanear el código. Si no se ve claramente en la consola, abre `http://localhost:3000/qr` en tu navegador.
 4. **¡Listo!**: El bot estará activo y responderá mensajes
 
 ## 🎯 Comandos Disponibles
@@ -179,6 +180,7 @@ El bot responde automáticamente a:
 - `GET /status` - Estado detallado y métricas
 - `GET /products` - Lista de productos y estadísticas
 - `GET /products/search/:query` - Buscar productos por término
+- `GET /qr` - Muestra el código QR para escanear en una página web. Se desactiva automáticamente después de una autenticación exitosa.
 
 ### Archivos de Log
 
