@@ -52,64 +52,60 @@ function saveCache() {
 // Cargar el caché al iniciar el módulo
 loadCache();
 
-/**
- * Obtiene la hora actual en Venezuela (UTC-4).
- * @returns {Date}
- */
-function getVenezuelaTime() {
-    const now = new Date();
-    const vetOffset = -4 * 60 * 60 * 1000; // UTC-4
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    return new Date(utc + vetOffset);
-}
 
 /**
  * Determina si se debe realizar una nueva consulta al BCV basado en una lógica de caché inteligente.
+ * La lógica ahora opera en UTC y convierte a VET (UTC-4) para las comparaciones de tiempo.
  * La función devuelve `true` (consultar) bajo las siguientes condiciones, en orden de prioridad:
  * 1. Si el caché está vacío.
- * 2. Si la fecha del caché es de un día anterior.
+ * 2. Si la fecha del caché es de un día anterior (en VET).
  * 3. Si la hora actual está DENTRO de la ventana de actualización del BCV (3-6 PM VET), para capturar la tasa nueva tan pronto como se publique.
  * 4. Si la hora actual está DESPUÉS de la ventana de actualización, pero la última actualización en caché fue ANTES de que la ventana comenzara. Esto sirve como un mecanismo de recuperación si el bot estuvo inactivo.
- * 
+ *
  * En cualquier otro caso, devuelve `false` para usar el valor del caché.
  * @returns {boolean} - True si se debe realizar una nueva consulta, false si se puede usar el caché.
  */
 function shouldFetchNewRates() {
-    const now = getVenezuelaTime();
-    const currentHour = now.getHours();
-
     // 1. Si el caché está vacío.
     if (!cache.lastUpdated) {
         console.log("Cache vacío. Se necesita consultar al BCV.");
         return true;
     }
 
-    const lastUpdated = new Date(cache.lastUpdated);
-    const lastUpdatedHour = lastUpdated.getHours();
+    const now = new Date(); // Hora actual en UTC
+    const lastUpdated = new Date(cache.lastUpdated); // Hora del caché en UTC
 
-    // 2. Si la fecha del caché es de un día anterior.
-    if (now.toDateString() !== lastUpdated.toDateString()) {
-        console.log("El caché es de un día anterior. Se necesita consultar al BCV.");
+    // Para comparar en la zona horaria de Venezuela (VET = UTC-4), aplicamos un offset.
+    const VET_OFFSET = 4 * 60 * 60 * 1000;
+    const nowInVET = new Date(now.getTime() - VET_OFFSET);
+    const lastUpdatedInVET = new Date(lastUpdated.getTime() - VET_OFFSET);
+
+    // 2. Si la fecha del caché es de un día anterior (comparando en VET).
+    // Comparamos la parte de la fecha (YYYY-MM-DD) de la cadena ISO.
+    if (nowInVET.toISOString().slice(0, 10) !== lastUpdatedInVET.toISOString().slice(0, 10)) {
+        console.log("El caché es de un día anterior (VET). Se necesita consultar al BCV.");
         return true;
     }
 
     // Si es el mismo día, aplicar lógica de ventana de actualización
+    const currentHourVET = nowInVET.getUTCHours();
+    const lastUpdatedHourVET = lastUpdatedInVET.getUTCHours();
+
     // 3. Si la hora actual está DENTRO de la ventana de actualización del BCV (3-6 PM VET),
     //    se fuerza la consulta para asegurar tener la tasa más reciente.
-    const isWithinUpdateWindow = currentHour >= 15 && currentHour < 18; // 3 PM to 5:59 PM
-    const wasUpdatedBeforeWindow = lastUpdatedHour < 15; // Before 3 PM
-
+    const isWithinUpdateWindow = currentHourVET >= 15 && currentHourVET < 18; // 3 PM to 5:59 PM VET
     if (isWithinUpdateWindow) {
-        console.log("Dentro de la ventana de actualización. Forzando consulta al BCV.");
+        console.log("Dentro de la ventana de actualización (VET). Forzando consulta al BCV.");
         return true;
     }
 
     // 4. Si la hora actual está DESPUÉS de la ventana de actualización (después de las 6 PM VET),
     //    pero la última actualización en caché fue ANTES de que la ventana comenzara.
     //    Esto sirve como un mecanismo de recuperación si el bot estuvo inactivo.
-    const isAfterUpdateWindow = currentHour >= 18; // 6 PM or later
+    const isAfterUpdateWindow = currentHourVET >= 18; // 6 PM VET or later
+    const wasUpdatedBeforeWindow = lastUpdatedHourVET < 15; // Before 3 PM VET
     if (isAfterUpdateWindow && wasUpdatedBeforeWindow) {
-        console.log("Después de la ventana de actualización y caché antiguo. Se necesita consultar al BCV (recuperación).");
+        console.log("Después de la ventana de actualización y caché antiguo (VET). Se necesita consultar al BCV (recuperación).");
         return true;
     }
 
@@ -160,7 +156,7 @@ async function _extraerValorPaginaBCV(moneda) {
 export function setManualRates(dolar, euro) {
     cache.dolar = dolar;
     cache.euro = euro;
-    cache.lastUpdated = getVenezuelaTime().toISOString();
+    cache.lastUpdated = new Date().toISOString();
 
     saveCache(); // Guardar el nuevo caché en el archivo
 
@@ -183,7 +179,7 @@ export async function getBcvRates() {
         if (dolar && euro && dolar !== -1 && euro !== -1) {
             cache.dolar = dolar;
             cache.euro = euro;
-            cache.lastUpdated = getVenezuelaTime().toISOString();
+            cache.lastUpdated = new Date().toISOString();
 
             saveCache(); // Guardar el nuevo caché en el archivo
             return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated, updateFailed: false };
