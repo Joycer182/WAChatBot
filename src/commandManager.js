@@ -237,7 +237,7 @@ class CommandManager {
     async handleHelp(args, contact) {
         const clientType = this.getClientType(contact);
 
-        return `🤖 *Bot de Atención al Cliente*
+        let response = `🤖 *Bot de Atención al Cliente*
 
 *Comandos generales:*
 */ayuda* - Muestra este menú
@@ -248,11 +248,21 @@ class CommandManager {
 *Comandos de productos:*
 */precio [código]* - Información y cotización de producto(s)
 
-*/buscar [término]* - Buscar productos específicos según un término
+*/buscar [término]* - Buscar productos específicos según un término`;
 
-*Ejemplos:*
+        // Documentación adicional exclusiva para INSTALADORES
+        if (clientType === this.clientTypes.INSTALADOR) {
+            response += `\n\n*Herramienta de Reventa (Instalador):*
+Puedes agregar un porcentaje de ganancia a tus cotizaciones.
+*Uso:* /precio [Ganancia]% [Código] [Cantidad]
+*Ejemplo:* /precio 15% 11050 1 (Suma 15% al costo)`;
+        }
+
+        response += `\n\n*Ejemplos:*
 • /buscar breaker
 • /precio 11050`;
+
+        return response;
     }
 
     // Comando de información
@@ -386,8 +396,26 @@ No se encontraron productos que coincidan con tu búsqueda.
     // Manejador para cotizaciones de múltiples productos (puede recibir un tipo de cliente forzado)
     async _handleMultiProductQuote(args, contact, clientTypeOverride = null) {
         const clientType = clientTypeOverride || this.getClientType(contact);
+        let commissionMultiplier = 1.0;
+        let processedArgs = [...args]; // Trabajar sobre una copia para no modificar el original directamente
+
+        // --- Lógica para comisión de instalador ---
+        if (processedArgs.length > 0 && processedArgs[0].endsWith('%')) {
+            // Solo los instaladores pueden usar esta función
+            if (clientType === this.clientTypes.INSTALADOR) {
+                const percentageStr = processedArgs[0].slice(0, -1);
+                const percentage = parseFloat(percentageStr);
+                if (!isNaN(percentage) && percentage > 0) {
+                    commissionMultiplier = 1 + (percentage / 100);
+                    console.log(`Aplicando comisión del ${percentage}% para instalador ${contact.number}. Multiplicador: ${commissionMultiplier}`);
+                }
+            }
+            // Se remueve el argumento de porcentaje para que no sea procesado como un código de producto.
+            // Para no-instaladores, esto simplemente lo ignora.
+            processedArgs.shift();
+        }
         // Limpiar argumentos, eliminando comas y espacios extra
-        const cleanArgs = args.join(' ').replace(/,/g, ' ').split(' ').filter(Boolean);
+        const cleanArgs = processedArgs.join(' ').replace(/,/g, ' ').split(' ').filter(Boolean);
 
         const items = [];
         const invalidFormatItems = [];
@@ -472,12 +500,13 @@ No se encontraron productos que coincidan con tu búsqueda.
         for (const item of items) {
             const product = this.productManager.getProductByCode(item.code);
             if (product) {
-                const unitPrice = this.productManager.getRawPrice(product, clientType);
-                const subTotal = unitPrice * item.quantity;
+                const baseUnitPrice = this.productManager.getRawPrice(product, clientType);
+                const finalUnitPrice = baseUnitPrice * commissionMultiplier; // Aplicar comisión
+                const subTotal = finalUnitPrice * item.quantity;
                 grandTotal += subTotal;
                 totalPiezas += item.quantity;
 
-                const formattedUnitPrice = this.productManager.getFormattedPrice(product, clientType);
+                const formattedUnitPrice = `$${finalUnitPrice.toFixed(2)}`;
                 const formattedSubTotal = `$${subTotal.toFixed(2)}`; // Asegurar 2 decimales
 
                 response += `✅ *Producto:* ${product.descripcion}\n`;
@@ -534,7 +563,25 @@ No se encontraron productos que coincidan con tu búsqueda.
     // Manejador para cotizaciones de múltiples productos en divisas (sin multiplicador, puede recibir un tipo de cliente forzado)
     async _handleMultiDivisaQuote(args, contact, clientTypeOverride = null) {
         const clientType = clientTypeOverride || this.getClientType(contact);
-        const cleanArgs = args.join(' ').replace(/,/g, ' ').split(' ').filter(Boolean);
+        let commissionMultiplier = 1.0;
+        let processedArgs = [...args]; // Trabajar sobre una copia
+
+        // --- Lógica para comisión de instalador ---
+        if (processedArgs.length > 0 && processedArgs[0].endsWith('%')) {
+            // Solo los instaladores pueden usar esta función
+            if (clientType === this.clientTypes.INSTALADOR) {
+                const percentageStr = processedArgs[0].slice(0, -1);
+                const percentage = parseFloat(percentageStr);
+                if (!isNaN(percentage) && percentage > 0) {
+                    commissionMultiplier = 1 + (percentage / 100);
+                    console.log(`Aplicando comisión del ${percentage}% para instalador ${contact.number} en /divisas. Multiplicador: ${commissionMultiplier}`);
+                }
+            }
+            // Se remueve el argumento de porcentaje para que no sea procesado como un código de producto.
+            // Para no-instaladores, esto simplemente lo ignora.
+            processedArgs.shift();
+        }
+        const cleanArgs = processedArgs.join(' ').replace(/,/g, ' ').split(' ').filter(Boolean);
 
         const items = [];
         const invalidFormatItems = [];
@@ -613,15 +660,16 @@ No se encontraron productos que coincidan con tu búsqueda.
         for (const item of items) {
             const product = this.productManager.getProductByCode(item.code);
             if (product) {
-                const unitPrice = this.productManager.getBasePrice(product, clientType);
-                const subTotal = unitPrice * item.quantity;
+                const baseUnitPrice = this.productManager.getBasePrice(product, clientType);
+                const finalUnitPrice = baseUnitPrice * commissionMultiplier; // Aplicar comisión
+                const subTotal = finalUnitPrice * item.quantity;
                 grandTotal += subTotal;
                 totalPiezas += item.quantity;
 
                 response += `✅ *Producto:* ${product.descripcion}\n`;
                 response += `*Código:* ${item.code}\n`;
                 response += `*Cantidad:* ${item.quantity}\n`;
-                response += `*Precio Especial Unitario:* $${unitPrice.toFixed(2)}\n`;
+                response += `*Precio Especial Unitario:* $${finalUnitPrice.toFixed(2)}\n`;
                 response += `*Subtotal:* $${subTotal.toFixed(2)}\n\n`;
             } else {
                 notFoundItems.push(item.code);
