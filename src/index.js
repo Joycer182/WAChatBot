@@ -74,6 +74,7 @@ const client = new Client({
 // Variables globales para el estado del bot
 let isReady = false;
 let qrCodeGenerated = false;
+let lastQrCode = null; // Almacenar el último QR para mostrarlo en web
 let botStartupTimestamp = null; // Para ignorar mensajes antiguos al iniciar
 const sentMessagesToVendors = new Set(); // Para ignorar mensajes enviados a vendedores
 
@@ -213,11 +214,13 @@ Para buscar productos específicos, puedes usar:
 
 // Eventos del cliente WhatsApp
 client.on('qr', (qr) => {
+    lastQrCode = qr;
+    // Imprimir el QR siempre que cambie, ya que caducan
+    console.log('\n🔗 Nuevo código QR recibido. Escanea con WhatsApp:');
+    qrcode.generate(qr, { small: true });
+    console.log(`\n🌐 Si el QR sale desordenado, ábrelo aquí: http://localhost:${PORT}/qr`);
+
     if (!qrCodeGenerated) {
-        console.log('\n🔗 Escanea este código QR con WhatsApp:');
-
-        qrcode.generate(qr, { small: true });
-
         qrCodeGenerated = true;
         logMessage('Código QR generado para autenticación');
     }
@@ -225,6 +228,8 @@ client.on('qr', (qr) => {
 
 client.on('ready', () => {
     isReady = true;
+    lastQrCode = null; // Limpiar el QR una vez autenticado por seguridad
+    qrCodeGenerated = false; // Resetear para una posible futura sesión
     console.log('\n✅ ¡Bot de WhatsApp listo!');
     logMessage('Bot iniciado y listo para recibir mensajes');
 });
@@ -411,6 +416,27 @@ app.get('/status', (req, res) => {
         uptime: process.uptime(),
         timestamp: new Date().toISOString()
     });
+});
+
+app.get('/qr', (req, res) => {
+    if (isReady) {
+        return res.status(200).send('<html><body style="display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; flex-direction:column; background:#f0f0f0;"><h1>✅ Bot Autenticado</h1><p>La sesión de WhatsApp ya está activa. No hay código QR para mostrar.</p></body></html>');
+    }
+    if (!lastQrCode) {
+        return res.send('<html><head><meta http-equiv="refresh" content="5"></head><body><h1>Esperando código QR...</h1><p>Revisa la consola si tarda mucho.</p></body></html>');
+    }
+    res.send(`
+        <html>
+            <head><title>Escanear QR WhatsApp</title><meta http-equiv="refresh" content="20"></head>
+            <body style="display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; flex-direction:column; background:#f0f0f0;">
+                <h1>Escanea este QR</h1>
+                <div style="background:white; padding:20px; border-radius:10px; box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(lastQrCode)}" alt="QR Code" />
+                </div>
+                <p>La página se actualiza automáticamente.</p>
+            </body>
+        </html>
+    `);
 });
 
 app.get('/products', (req, res) => {
