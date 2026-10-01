@@ -325,6 +325,17 @@ client.on('message', async (message) => {
         }
 
         const contact = await message.getContact();
+
+        // Obtener el número real (pn) aunque WhatsApp entregue un LID por privacidad.
+        const mappings = await client.getContactLidAndPhone([message.from]);
+        const realNumber = (mappings?.[0]?.pn ?? '').split('@')[0] || contact.number;
+
+        // Sobrescribir contact.number para que toda la lógica (clientStates,
+        // vendedores, conversaciones) use la misma clave: el teléfono real.
+        contact.number = realNumber;
+
+        console.log(`Número real: ${realNumber} | ID recibido: ${message.from}`);
+
         logMessage(`Mensaje recibido de ${contact.pushname || contact.number}: ${message.body}`);
 
         // --- NUEVA LÓGICA: Mensaje de bienvenida para nuevos clientes ---

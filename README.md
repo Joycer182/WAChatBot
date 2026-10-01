@@ -237,6 +237,27 @@ WSChatBot/
 
 ## 🚨 Solución de Problemas
 
+### 📱 Identificación del número real del cliente (LID vs teléfono)
+
+WhatsApp Web puede entregar, en lugar del número de teléfono, un **LID**
+(identificador interno de privacidad, p. ej. `277412004806714`) cuando el
+usuario tiene ciertas configuraciones de privacidad. Esto rompía la persistencia
+del bot, porque los registros de clientes (`src/data/client_data.json`), los
+vendedores (`src/data/vendedores.json`) y las conversaciones
+(`src/data/conversations/`) están basados en el **número telefónico real**.
+
+**Solución aplicada:** en el manejador de mensajes de `src/index.js` se resuelve
+el número real con `client.getContactLidAndPhone([message.from])` y se sobrescribe
+`contact.number` con ese valor (`mappings[0].pn`, sin el sufijo `@c.us`). Así toda
+la lógica (tipo de cliente, verificación de vendedor, cotizaciones y logs) usa la
+misma clave: el teléfono real. Si la API no puede resolver el número, se mantiene
+`contact.number` como respaldo.
+
+**Nota:** los datos antiguos guardados con LID no se migran automáticamente. Si
+aparecen claves de 15 dígitos (LID) en `client_data.json` o archivos con nombre de
+15 dígitos en `conversations/`, puedes eliminarlos de forma segura; se regenerarán
+con el número correcto cuando el cliente vuelva a escribir.
+
 ### Bot no responde
 1. Verifica que el bot esté conectado: `GET http://localhost:3000/status`
 2. Revisa los logs en la consola o en el archivo `logs/chatbot.log`
