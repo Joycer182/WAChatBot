@@ -1,10 +1,10 @@
 # 🤖 Bot de WhatsApp para Atención al Cliente
 
-Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención al cliente, gestionar consultas de productos y ofrecer precios diferenciados, todo integrado con una base de datos de productos en Excel.
+Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención al cliente, gestionar consultas de productos y ofrecer precios diferenciados, todo integrado con bases de datos SQLite (catálogo de productos y datos operativos del bot).
 
 ## ✨ Características
 
-- **Integración con Excel**: Lee productos directamente desde archivo `TablaProductos.xlsx`
+- **Integración con SQLite**: Consulta productos desde `LocalJose.db` y persiste los datos operativos (clientes, vendedores, conversaciones, caché BCV y estadísticas) en `bot.db`, todo mediante el patrón repositorio (fácil de migrar a una API REST)
 - **Consulta Robusta de Tasa de Cambio (BCV)**: Sistema de caché inteligente y persistente para las tasas del BCV. La lógica de actualización garantiza tener siempre la tasa más reciente:
   - **Actualización Diaria Asegurada**: Si la tasa en caché es de un día anterior, se actualiza automáticamente.
   - **Captura Agresiva**: Durante la ventana de publicación del BCV (3-6 PM VET), el bot consulta constantemente para obtener la nueva tasa apenas esté disponible.
@@ -46,36 +46,34 @@ cp env.example .env
 # Edita el archivo .env con tu información
 ```
 
-### 3. Configurar Archivo Excel
-```bash
-# Si no tienes un archivo de productos, puedes generar uno de ejemplo (opcional):
-# node create-sample-excel.js 
-# (Nota: este script no está incluido en el proyecto base, es un ejemplo de uso)
-# O coloca tu propio archivo TablaProductos.xlsx en la raíz del proyecto
-```
+### 3. Configurar las Bases de Datos SQLite
 
-**Estructura del archivo Excel:**
-- `Codigo`: ID único del producto
-- `Descripcion`: Nombre del producto
-- `Categoria`: Categoría del producto
-- `UsdM`: Precio para tiendas
-- `UsdI`: Precio para instaladores
-- `UsdG`: Precio para clientes generales
+**Catálogo de productos** (`src/data/LocalJose.db`, env `SQLITE_DB_PATH`):
+- Tabla `productos`: `codigo`, `descripcion`, `usd_g`, `usd_i`, `usd_m`, `id_categoria`, `descontinuado`
+- Tabla `categorias`: `id`, `nombre`
 
-### 4. Configurar Vendedores (Opcional)
-Para utilizar el comando `/enviar`, es necesario crear un archivo `vendedores.json` en la carpeta `src/data/`. Este archivo contiene los alias y números de WhatsApp de los vendedores a quienes se les pueden enviar las cotizaciones.
+El bot hace un `INNER JOIN` entre `productos` y `categorias` (por `id_categoria = id`) y
+excluye los productos con `descontinuado = 1`. Mapeo de precios:
+- `usd_m` → Precio para tiendas
+- `usd_i` → Precio para instaladores
+- `usd_g` → Precio para clientes generales
 
-**Formato del archivo `src/data/vendedores.json`:**
-```json
-{
-  "nombre_vendedor1": "584140000001",
-  "alias_vendedor2": "584120000002"
-}
-```
-- La **clave** es el alias que el cliente usará en el comando (ej. `/enviar nombre_vendedor1`). Se recomienda usar minúsculas y sin espacios.
-- El **valor** es el número de WhatsApp del vendedor en formato internacional, sin el símbolo `+`.
+**Datos operativos del bot** (`src/data/bot.db`, env `BOT_DB_PATH`):
+se crea automáticamente al arrancar con las tablas `clientes`, `vendedores`,
+`conversaciones`, `bcv_cache`, `bot_stats` y `quote_history`.
 
-### 4. Personalizar Configuración
+> Si vienes de una versión anterior con archivos JSON, ejecuta una vez:
+> ```bash
+> node scripts/migrate-to-db.js
+> ```
+
+### 4. Configurar Vendedores
+Los vendedores viven ahora en la tabla `vendedores` de `bot.db` (alias → número de
+WhatsApp). Si vienes de una versión anterior, la migración importa los registros de
+`src/data/vendedores.json`. Para agregar o editar vendedores, modifica esa tabla
+directamente en `bot.db`.
+
+### 5. Personalizar Configuración
 Edita el archivo `.env` con la información de tu empresa:
 
 ```env
@@ -86,6 +84,8 @@ EMPRESA_DIRECCION=Mi dirección comercial
 
 # Configuración de precios
 PRICE_MULTIPLIER=1.0  # Multiplicador global de precios
+SQLITE_DB_PATH=src/data/LocalJose.db  # Ruta de la base de datos de productos
+BOT_DB_PATH=src/data/bot.db  # Ruta de la base de datos operativa del bot
 DEFAULT_CLIENT_TYPE=general
 CLIENT_TYPE_GENERAL=general
 CLIENT_TYPE_TIENDA=tienda
@@ -98,7 +98,7 @@ CATALOG_VERSION=1.0 # Versión del catálogo de precios
 MAX_QUOTE_QUANTITY=10000 # Límite para diferenciar entre una cantidad y un código de producto en cotizaciones rápidas
 ```
 
-### 5. Ejecutar el Bot
+### 6. Ejecutar el Bot
 ```bash
 # Modo producción
 npm start
@@ -212,26 +212,34 @@ WSChatBot/
 ├── src/
 │   ├── index.js            # Archivo principal del bot
 │   ├── commandManager.js     # Gestiona todos los comandos y su lógica
-│   ├── productManager.js     # Gestiona la carga y búsqueda de productos desde Excel
+│   ├── productManager.js     # Capa de servicio/fachada para los productos
+│   ├── dataSources/          # Fuentes de datos (patrón repositorio)
+│   │   ├── ProductDataSource.js       # Interfaz abstracta del repositorio de productos
+│   │   ├── SqliteProductDataSource.js # Implementación SQLite de productos
+│   │   ├── BotDataSource.js           # Interfaz abstracta del repositorio del bot
+│   │   └── SqliteBotDataSource.js     # Implementación SQLite de los datos del bot
+│   ├── bcvScraper.js         # Scraping del BCV (caché en bot.db)
 │   ├── config.js             # Configuración centralizada y textos del bot
 │   └── data/                 # Carpeta para todos los datos generados y persistentes
-│       ├── conversations/    # Conversaciones guardadas
+│       ├── LocalJose.db      # Base de datos SQLite de productos
+│       ├── bot.db            # Base de datos SQLite operativa (clientes, vendedores, etc.)
 │       ├── logs/             # Logs del sistema
-│       ├── product_images/   # Imágenes de los productos (ej. 11050.jpg)
-│       ├── client_data.json  # Almacena el tipo de cliente para persistencia
-│       ├── vendedores.json   # Lista de vendedores para el comando /enviar
-│       └── ...               # Otros archivos de datos (caché, estadísticas)
+│       └── product_images/   # Imágenes de los productos (ej. 11050.jpg)
 ├── .env                    # Variables de entorno
 ├── env.example             # Ejemplo de configuración
 ├── package.json            # Dependencias y scripts
+├── scripts/                # Scripts de utilidad
+│   ├── test-db.js          # Smoke test de la base de datos de productos
+│   ├── test-bot-db.js      # Smoke test de la base de datos del bot
+│   └── migrate-to-db.js    # Migración de JSON histórico a bot.db
 └── README.md               # Este archivo
 ```
 
 ## 🔒 Seguridad
 
-- Las conversaciones se guardan localmente en la carpeta `src/data/conversations/`
+- Las conversaciones se guardan localmente en la base de datos `src/data/bot.db`
 - No se comparten datos con terceros
-- La preferencia de tipo de cliente se guarda localmente en `src/data/client_data.json`
+- La preferencia de tipo de cliente se guarda localmente en `bot.db` (tabla `clientes`)
 - Sesión de WhatsApp cifrada localmente
 - Logs sensibles protegidos
 
@@ -242,9 +250,9 @@ WSChatBot/
 WhatsApp Web puede entregar, en lugar del número de teléfono, un **LID**
 (identificador interno de privacidad, p. ej. `277412004806714`) cuando el
 usuario tiene ciertas configuraciones de privacidad. Esto rompía la persistencia
-del bot, porque los registros de clientes (`src/data/client_data.json`), los
-vendedores (`src/data/vendedores.json`) y las conversaciones
-(`src/data/conversations/`) están basados en el **número telefónico real**.
+del bot, porque los registros de clientes (tabla `clientes` de `bot.db`), los
+vendedores (tabla `vendedores`) y las conversaciones (tabla `conversaciones`)
+están basados en el **número telefónico real**.
 
 **Solución aplicada:** en el manejador de mensajes de `src/index.js` se resuelve
 el número real con `client.getContactLidAndPhone([message.from])` y se sobrescribe
@@ -254,8 +262,8 @@ misma clave: el teléfono real. Si la API no puede resolver el número, se manti
 `contact.number` como respaldo.
 
 **Nota:** los datos antiguos guardados con LID no se migran automáticamente. Si
-aparecen claves de 15 dígitos (LID) en `client_data.json` o archivos con nombre de
-15 dígitos en `conversations/`, puedes eliminarlos de forma segura; se regenerarán
+aparecen claves de 15 dígitos (LID) en la tabla `clientes` o filas con teléfono de
+15 dígitos en `conversaciones`, puedes eliminarlos de forma segura; se regenerarán
 con el número correcto cuando el cliente vuelva a escribir.
 
 ### Bot no responde
@@ -281,11 +289,11 @@ Para usarlo, ejecuta `node src/utils.js [comando]`.
 
 ### Comandos Disponibles
 
--   `stats`: Muestra estadísticas generales del bot, como el número de logs, conversaciones guardadas y el estado de la sesión de WhatsApp.
+-   `stats`: Muestra estadísticas generales del bot, como el número de logs, conversaciones guardadas (desde `bot.db`) y el estado de la sesión de WhatsApp.
 -   `clean [días]`: Limpia los archivos de log más antiguos que el número de días especificado. Por defecto, mantiene los logs de los últimos 7 días.
--   `export [archivo]`: Exporta todas las conversaciones guardadas a un único archivo JSON. Por defecto, se guarda en `conversations_export.json`.
+-   `export [archivo]`: Exporta todas las conversaciones guardadas (desde `bot.db`) a un único archivo JSON. Por defecto, se guarda en `conversations_export.json`.
 -   `clear-session`: Elimina la carpeta de sesión de WhatsApp (`.wwebjs_auth`). Esto es útil si tienes problemas de autenticación y necesitas escanear el código QR de nuevo.
--   `backup`: Crea una copia de seguridad de las conversaciones y los logs en una nueva carpeta dentro de `src/backups`.
+-   `backup`: Crea una copia de seguridad de `bot.db` y de los logs en una nueva carpeta dentro de `src/backups`.
 -   `help`: Muestra un mensaje de ayuda con todos los comandos disponibles.
 
 ### Ejemplos de Uso
@@ -307,7 +315,9 @@ node src/utils.js clear-session
 ## 📈 Próximas Mejoras
 
 - [x] Persistencia de datos de cliente (tipo de cliente)
-- [ ] Integración con base de datos (SQLite, etc.) para productos y clientes
+- [x] Integración con base de datos (SQLite) para productos
+- [x] Persistencia operativa en SQLite (clientes, vendedores, conversaciones, BCV, estadísticas)
+- [ ] Integración con API REST para productos y datos operativos
 - [ ] Respuestas con IA/ML
 - [ ] Integración con CRM
 - [ ] Soporte para multimedia

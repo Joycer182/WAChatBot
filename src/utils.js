@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import config from './config.js';
+import SqliteBotDataSource from './dataSources/SqliteBotDataSource.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,7 +11,15 @@ const __dirname = path.dirname(__filename);
 class BotUtils {
     constructor() {
         this.logsDir = path.join(__dirname, 'data', 'logs');
-        this.conversationsDir = path.join(__dirname, 'data', 'conversations');
+        // La ruta de config.database.dbFilePath es relativa a la raíz del repo.
+        this.dbFilePath = path.resolve(__dirname, '..', config.database.dbFilePath);
+    }
+
+    // Crear una fuente de datos conectada (o null si falla).
+    async _connect() {
+        const dataSource = new SqliteBotDataSource(this.dbFilePath);
+        const ok = await dataSource.initialize();
+        return ok ? dataSource : null;
     }
 
     // Limpiar logs antiguos
@@ -28,7 +38,7 @@ class BotUtils {
             files.forEach(file => {
                 const filePath = path.join(this.logsDir, file);
                 const stats = fs.statSync(filePath);
-                
+
                 if (stats.mtime < cutoffDate) {
                     fs.unlinkSync(filePath);
                     cleanedCount++;
@@ -41,34 +51,26 @@ class BotUtils {
         }
     }
 
-    // Exportar conversaciones
-    exportConversations(outputFile = 'conversations_export.json') {
+    // Exportar conversaciones desde la base de datos
+    async exportConversations(outputFile = 'conversations_export.json') {
+        const dataSource = await this._connect();
+        if (!dataSource) {
+            console.error('❌ No se pudo conectar con la base de datos del bot.');
+            return;
+        }
         try {
-            if (!fs.existsSync(this.conversationsDir)) {
-                console.log('No hay conversaciones para exportar');
-                return;
-            }
-
-            const files = fs.readdirSync(this.conversationsDir);
-            const allConversations = {};
-
-            files.forEach(file => {
-                if (file.endsWith('.json')) {
-                    const filePath = path.join(this.conversationsDir, file);
-                    const conversations = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                    allConversations[file.replace('.json', '')] = conversations;
-                }
-            });
-
+            const allConversations = await dataSource.getAllConversations();
             fs.writeFileSync(outputFile, JSON.stringify(allConversations, null, 2));
             console.log(`✅ Conversaciones exportadas a ${outputFile}`);
         } catch (error) {
             console.error('❌ Error exportando conversaciones:', error.message);
+        } finally {
+            await dataSource.close();
         }
     }
 
     // Mostrar estadísticas
-    showStats() {
+    async showStats() {
         try {
             console.log('\n📊 ESTADÍSTICAS DEL BOT\n');
 
@@ -80,30 +82,23 @@ class BotUtils {
                 console.log('📝 Archivos de log: 0');
             }
 
-            // Estadísticas de conversaciones
-            if (fs.existsSync(this.conversationsDir)) {
-                const conversationFiles = fs.readdirSync(this.conversationsDir);
-                let totalMessages = 0;
-                let uniqueContacts = 0;
-
-                conversationFiles.forEach(file => {
-                    if (file.endsWith('.json')) {
-                        const filePath = path.join(this.conversationsDir, file);
-                        const conversations = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                        totalMessages += conversations.length;
-                        uniqueContacts++;
-                    }
-                });
-
-                console.log(`💬 Conversaciones únicas: ${uniqueContacts}`);
-                console.log(`📨 Total de mensajes: ${totalMessages}`);
+            // Estadísticas de conversaciones (desde la base de datos)
+            const dataSource = await this._connect();
+            if (dataSource) {
+                try {
+                    const counts = await dataSource.countConversations();
+                    console.log(`💬 Conversaciones únicas: ${counts.contactosUnicos}`);
+                    console.log(`📨 Total de mensajes: ${counts.totalMensajes}`);
+                } finally {
+                    await dataSource.close();
+                }
             } else {
                 console.log('💬 Conversaciones únicas: 0');
                 console.log('📨 Total de mensajes: 0');
             }
 
             // Estadísticas de sesión
-            const sessionDir = path.join(__dirname, '..', '.wwebjs_auth');
+            const sessionDir = path.join(__dirname, 'data', '.wwebjs_auth');
             if (fs.existsSync(sessionDir)) {
                 console.log('🔐 Sesión de WhatsApp: Activa');
             } else {
@@ -134,7 +129,7 @@ class BotUtils {
     }
 
     // Crear backup
-    createBackup() {
+    async createBackup() {
         try {
             const backupDir = path.join(__dirname, 'backups');
             if (!fs.existsSync(backupDir)) {
@@ -147,16 +142,14 @@ class BotUtils {
 
             fs.mkdirSync(backupPath);
 
-            // Backup de conversaciones
-            if (fs.existsSync(this.conversationsDir)) {
-                const conversationsBackup = path.join(backupPath, 'conversations');
-                fs.cpSync(this.conversationsDir, conversationsBackup, { recursive: true });
+            // Backup de la base de datos del bot
+            if (fs.existsSync(this.dbFilePath)) {
+                fs.copyFileSync(this.dbFilePath, path.join(backupPath, 'bot.db'));
             }
 
             // Backup de logs
             if (fs.existsSync(this.logsDir)) {
-                const logsBackup = path.join(backupPath, 'logs');
-                fs.cpSync(this.logsDir, logsBackup, { recursive: true });
+                fs.cpSync(this.logsDir, path.join(backupPath, 'logs'), { recursive: true });
             }
 
             console.log(`✅ Backup creado en: ${backupPath}`);
@@ -171,47 +164,51 @@ class BotUtils {
 🤖 UTILIDADES DEL BOT DE WHATSAPP
 
 Comandos disponibles:
-  node utils.js stats          - Mostrar estadísticas del bot
-  node utils.js clean          - Limpiar logs antiguos (7 días)
-  node utils.js clean [días]   - Limpiar logs más antiguos que X días
-  node utils.js export         - Exportar conversaciones
-  node utils.js export [archivo] - Exportar a archivo específico
-  node utils.js clear-session  - Limpiar sesión de WhatsApp
-  node utils.js backup         - Crear backup completo
-  node utils.js help           - Mostrar esta ayuda
+  node src/utils.js stats          - Mostrar estadísticas del bot
+  node src/utils.js clean          - Limpiar logs antiguos (7 días)
+  node src/utils.js clean [días]   - Limpiar logs más antiguos que X días
+  node src/utils.js export         - Exportar conversaciones
+  node src/utils.js export [archivo] - Exportar a archivo específico
+  node src/utils.js clear-session  - Limpiar sesión de WhatsApp
+  node src/utils.js backup         - Crear backup completo
+  node src/utils.js help           - Mostrar esta ayuda
 
 Ejemplos:
-  node utils.js stats
-  node utils.js clean 30
-  node utils.js export mis_conversaciones.json
+  node src/utils.js stats
+  node src/utils.js clean 30
+  node src/utils.js export mis_conversaciones.json
         `);
     }
 }
 
 // Ejecutar comando
-const command = process.argv[2];
-const utils = new BotUtils();
+async function run() {
+    const command = process.argv[2];
+    const utils = new BotUtils();
 
-switch (command) {
-    case 'stats':
-        utils.showStats();
-        break;
-    case 'clean':
-        const days = parseInt(process.argv[3]) || 7;
-        utils.cleanOldLogs(days);
-        break;
-    case 'export':
-        const filename = process.argv[3] || 'conversations_export.json';
-        utils.exportConversations(filename);
-        break;
-    case 'clear-session':
-        utils.clearSession();
-        break;
-    case 'backup':
-        utils.createBackup();
-        break;
-    case 'help':
-    default:
-        utils.showHelp();
-        break;
+    switch (command) {
+        case 'stats':
+            await utils.showStats();
+            break;
+        case 'clean':
+            const days = parseInt(process.argv[3]) || 7;
+            utils.cleanOldLogs(days);
+            break;
+        case 'export':
+            const filename = process.argv[3] || 'conversations_export.json';
+            await utils.exportConversations(filename);
+            break;
+        case 'clear-session':
+            utils.clearSession();
+            break;
+        case 'backup':
+            await utils.createBackup();
+            break;
+        case 'help':
+        default:
+            utils.showHelp();
+            break;
+    }
 }
+
+await run();

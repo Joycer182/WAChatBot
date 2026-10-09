@@ -17,14 +17,18 @@ const config = {
         domingos: process.env.HORARIO_DOMINGOS || 'Cerrado'
     },
 
-    // Configuración de productos desde Excel
+    // Configuración de productos desde la base de datos SQLite
     productos: {
-        excelFilePath: process.env.EXCEL_FILE_PATH || 'src/data/TablaProductos.xlsx',
-        excelSheetName: process.env.EXCEL_SHEET_NAME || 'Precios', // Nombre de la hoja con los productos
+        dbFilePath: process.env.SQLITE_DB_PATH || 'src/data/LocalJose.db',
         priceMultiplier: parseFloat(process.env.PRICE_MULTIPLIER) || 1.0,
         defaultClientType: process.env.DEFAULT_CLIENT_TYPE || 'general',
         enableClientTypeCommands: process.env.ENABLE_CLIENT_TYPE_COMMANDS === 'true' || true,
         catalogVersion: process.env.CATALOG_VERSION || '1.0' // Versión del catálogo
+    },
+
+    // Configuración de la base de datos operativa del bot
+    database: {
+        dbFilePath: process.env.BOT_DB_PATH || 'src/data/bot.db'
     },
 
     // Configuración del bot

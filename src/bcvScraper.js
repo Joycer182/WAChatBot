@@ -1,16 +1,13 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import fs from 'fs';
-import path from 'path';
 import https from 'https';
-import { fileURLToPath } from 'url';
 
-// --- Setup para obtener __dirname en módulos ES ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// --- Gestión del Caché mediante la fuente de datos (patrón repositorio) ---
+// Antes se guardaba en un archivo JSON. Ahora se delega en una BotDataSource
+// (SQLite hoy, API REST en el futuro). El caché se mantiene en memoria tras
+// cargarlo una vez y se persiste en cada actualización.
 
-// --- Gestión del Caché en Archivo JSON ---
-const CACHE_FILE_PATH = path.join(__dirname, 'data', 'bcv_cache.json');
+let cacheSource = null;
 
 let cache = {
     dolar: null,
@@ -19,38 +16,46 @@ let cache = {
 };
 
 /**
- * Carga el caché desde el archivo JSON.
+ * Inicializa el módulo con la fuente de datos y carga el caché persistido.
+ * Debe llamarse una sola vez al arrancar el bot, antes de usar getBcvRates.
+ * @param {import('./dataSources/BotDataSource.js').default} dataSource
  */
-function loadCache() {
+export async function initBcvCache(dataSource) {
+    cacheSource = dataSource;
     try {
-        if (fs.existsSync(CACHE_FILE_PATH)) {
-            const data = fs.readFileSync(CACHE_FILE_PATH, 'utf8');
-            cache = JSON.parse(data);
-            console.log("Caché de tasas del BCV cargado desde archivo.");
+        const stored = await dataSource.getBcvCache();
+        if (stored && stored.lastUpdated) {
+            cache = {
+                dolar: stored.dolar,
+                euro: stored.euro,
+                lastUpdated: stored.lastUpdated
+            };
+            console.log("Caché de tasas del BCV cargado desde la base de datos.");
         } else {
-            console.log("No se encontró archivo de caché del BCV. Se creará uno nuevo en la primera consulta exitosa.");
-            saveCache();
+            console.log("No se encontró caché del BCV en la base de datos. Se creará en la primera consulta exitosa.");
         }
     } catch (error) {
-        console.error("Error al cargar el archivo de caché del BCV. Se usará un caché vacío.", error);
+        console.error("Error al cargar el caché del BCV. Se usará un caché vacío.", error);
         cache = { dolar: null, euro: null, lastUpdated: null };
     }
 }
 
 /**
- * Guarda el caché actual en el archivo JSON.
+ * Guarda el caché actual en la fuente de datos.
  */
-function saveCache() {
+async function saveCache() {
+    if (!cacheSource) return;
     try {
-        fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(cache, null, 2));
-        console.log("Caché de tasas del BCV guardado en archivo.");
+        await cacheSource.setBcvCache({
+            dolar: cache.dolar,
+            euro: cache.euro,
+            lastUpdated: cache.lastUpdated
+        });
+        console.log("Caché de tasas del BCV guardado.");
     } catch (error) {
-        console.error("Error al guardar el archivo de caché del BCV.", error);
+        console.error("Error al guardar el caché de tasas del BCV.", error);
     }
 }
-
-// Cargar el caché al iniciar el módulo
-loadCache();
 
 
 /**
@@ -153,12 +158,12 @@ async function _extraerValorPaginaBCV(moneda) {
  * @param {number} dolar - Tasa del dólar
  * @param {number} euro - Tasa del euro
  */
-export function setManualRates(dolar, euro) {
+export async function setManualRates(dolar, euro) {
     cache.dolar = dolar;
     cache.euro = euro;
     cache.lastUpdated = new Date().toISOString();
 
-    saveCache(); // Guardar el nuevo caché en el archivo
+    await saveCache(); // Guardar el nuevo caché en la fuente de datos
 
     console.log(`⚠️ Tasas actualizadas manualmente por operador: USD ${dolar} | EUR ${euro}`);
 }
@@ -181,7 +186,7 @@ export async function getBcvRates() {
             cache.euro = euro;
             cache.lastUpdated = new Date().toISOString();
 
-            saveCache(); // Guardar el nuevo caché en el archivo
+            await saveCache(); // Guardar el nuevo caché en la fuente de datos
             return { dolar: cache.dolar, euro: cache.euro, lastUpdated: cache.lastUpdated, updateFailed: false };
         } else {
             console.warn("No se pudo actualizar el caché porque una o más consultas al BCV fallaron.");
