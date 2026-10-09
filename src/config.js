@@ -26,6 +26,11 @@ const config = {
         catalogVersion: process.env.CATALOG_VERSION || '1.0' // Versión del catálogo
     },
 
+    // Configuración de la base de datos operativa del bot
+    database: {
+        dbFilePath: process.env.BOT_DB_PATH || 'src/data/bot.db'
+    },
+
     // Configuración del bot
     bot: {
         port: process.env.PORT || 3000,

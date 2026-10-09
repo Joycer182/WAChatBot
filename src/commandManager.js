@@ -9,16 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class CommandManager {
-    constructor(productManager, client, vendedoresFilePath) {
+    constructor(productManager, client, botDataSource) {
         this.commands = new Map();
         this.productManager = productManager; // Usar la instancia pasada
         this.client = client; // Guardar la instancia del cliente de WhatsApp
-        this.clientStatesFilePath = path.join(__dirname, 'data', 'client_data.json');
-        this.clientStates = this._loadClientStates(); // Carga los estados desde el archivo
-        this.statsFilePath = path.join(__dirname, 'data', 'bot_stats.json');
-        this.botStats = this._loadBotStats(); // Carga las estadísticas del bot
-        this.vendedoresFilePath = vendedoresFilePath; // Usar la ruta pasada como argumento
-        this.vendedores = this._loadVendedores(); // Carga los vendedores desde el archivo
+        this.botDataSource = botDataSource; // Fuente de datos operativos del bot (clientes, vendedores, conversaciones, bcv, stats)
         this.pendingApprovals = new Map(); // Almacena solicitudes de cambio de tipo de cliente pendientes
         this.lastQuote = new Map(); // Almacena la última cotización por número de contacto
         this.MAX_QUOTE_QUANTITY = parseInt(process.env.MAX_QUOTE_QUANTITY, 10) || 1000; // Límite para diferenciar cantidad de código
@@ -30,100 +25,12 @@ class CommandManager {
         this.initializeCommands();
     }
 
-    // Cargar los estados de los clientes desde un archivo JSON
-    _loadClientStates() {
-        try {
-            if (fs.existsSync(this.clientStatesFilePath)) {
-                const data = fs.readFileSync(this.clientStatesFilePath, 'utf8');
-                const clientStatesObject = JSON.parse(data);
-                console.log('Tipos de cliente cargados desde archivo.');
-                return new Map(Object.entries(clientStatesObject));
-            } else {
-                console.log('No se encontró archivo de tipos de cliente. Se creará uno nuevo al primer uso.');
-                return new Map();
-            }
-        } catch (error) {
-            console.error('Error al cargar los tipos de cliente, iniciando con un mapa vacío:', error);
-            return new Map(); // En caso de error, empezar de cero para no bloquear el bot.
-        }
-    }
-
-    // Cargar los vendedores desde un archivo JSON
-    _loadVendedores() {
-        try {
-            if (fs.existsSync(this.vendedoresFilePath)) {
-                const data = fs.readFileSync(this.vendedoresFilePath, 'utf8');
-                const vendedoresObject = JSON.parse(data);
-                // Convertir todas las claves (nombres de vendedores) a minúsculas para una búsqueda insensible a mayúsculas/minúsculas
-                const lowerCaseVendedores = Object.entries(vendedoresObject).map(([key, value]) => [key.toLowerCase(), value]);
-                console.log('Vendedores cargados desde archivo.');
-                return new Map(lowerCaseVendedores);
-            } else {
-                console.warn('No se encontró archivo de vendedores (src/data/vendedores.json). La función /enviar no funcionará.');
-                return new Map();
-            }
-        } catch (error) {
-            console.error('Error al cargar los vendedores, iniciando con un mapa vacío:', error);
-            return new Map();
-        }
-    }
-
-    // Cargar estadísticas del bot desde un archivo JSON
-    _loadBotStats() {
-        try {
-            if (fs.existsSync(this.statsFilePath)) {
-                const data = fs.readFileSync(this.statsFilePath, 'utf8');
-                const stats = JSON.parse(data);
-                // Asegurarse de que todas las claves necesarias existan para evitar errores de NaN
-                stats.totalQuotes = stats.totalQuotes || 0;
-                stats.codigoQuotes = stats.codigoQuotes || 0;
-                stats.divisasQuotes = stats.divisasQuotes || 0;
-                stats.quoteHistory = stats.quoteHistory || []; // Asegurar que el historial exista
-                console.log('Estadísticas del bot cargadas desde archivo.');
-                return stats;
-            } else {
-                console.log('No se encontró archivo de estadísticas. Se creará uno nuevo.');
-                return { totalQuotes: 0, codigoQuotes: 0, divisasQuotes: 0, quoteHistory: [] };
-            }
-        } catch (error) {
-            console.error('Error al cargar las estadísticas del bot, iniciando con valores por defecto:', error);
-            return { totalQuotes: 0, codigoQuotes: 0, divisasQuotes: 0, quoteHistory: [] };
-        }
-    }
-
-    // Guardar los estados de los clientes en el archivo JSON
-    _saveClientStates() {
-        try {
-            const clientStatesObject = Object.fromEntries(this.clientStates);
-            fs.writeFileSync(this.clientStatesFilePath, JSON.stringify(clientStatesObject, null, 2));
-        } catch (error) {
-            console.error('Error al guardar los tipos de cliente:', error);
-        }
-    }
-
-    // Guardar las estadísticas del bot en el archivo JSON
-    _saveBotStats() {
-        try {
-            fs.writeFileSync(this.statsFilePath, JSON.stringify(this.botStats, null, 2));
-        } catch (error) {
-            console.error('Error al guardar las estadísticas del bot:', error);
-        }
-    }
-
-    // Incrementar el contador de cotizaciones
-    _incrementQuoteCount(type) {
-        this.botStats.totalQuotes = (this.botStats.totalQuotes || 0) + 1;
-        if (type) {
-            this.botStats[type] = (this.botStats[type] || 0) + 1;
-            // Agregar registro al historial con marca de tiempo
-            this.botStats.quoteHistory.push({
-                type: type,
-                timestamp: new Date().toISOString()
-            });
-        }
-        this._saveBotStats();
-        const typeCount = type ? this.botStats[type] : 'N/A';
-        console.log(`📈 Cotización registrada. Total: ${this.botStats.totalQuotes}. Tipo: ${type || 'N/A'}. Total por tipo: ${typeCount}`);
+    // Incrementar el contador de cotizaciones (delegado en la fuente de datos)
+    async _incrementQuoteCount(type) {
+        await this.botDataSource.incrementQuote(type);
+        const stats = await this.botDataSource.getStats();
+        const typeCount = type ? stats[type] : 'N/A';
+        console.log(`📈 Cotización registrada. Total: ${stats.totalQuotes}. Tipo: ${type || 'N/A'}. Total por tipo: ${typeCount}`);
     }
 
     // Helper para enviar mensajes de forma segura
@@ -219,23 +126,27 @@ class CommandManager {
         return `❌ *Comando no reconocido*.\n\n${helpMessage}`; // Combina el mensaje de error con la ayuda
     }
 
-    // Obtener tipo de cliente desde el contexto (puede ser mejorado con base de datos)
-    getClientType(contact) {
-        if (this.clientStates.has(contact.number)) {
-            return this.clientStates.get(contact.number);
-        }
+    // Obtener tipo de cliente desde la fuente de datos
+    async getClientType(contact) {
+        const tipo = await this.botDataSource.getClientType(contact.number);
+        if (tipo) return tipo;
         // Retorna el tipo de cliente por defecto si no se ha establecido uno
         return config.productos.defaultClientType;
     }
 
+    // Indica si un teléfono ya está registrado como cliente
+    async hasClient(telefono) {
+        return await this.botDataSource.hasClient(telefono);
+    }
+
     // Verificar si un contacto es un vendedor
-    isVendedor(contact) {
-        return Array.from(this.vendedores.values()).includes(contact.number);
+    async isVendedor(contact) {
+        return await this.botDataSource.isVendorPhone(contact.number);
     }
 
     // Comando de ayuda
     async handleHelp(args, contact) {
-        const clientType = this.getClientType(contact);
+        const clientType = await this.getClientType(contact);
 
         let response = `🤖 *Bot de Atención al Cliente*
 
@@ -294,7 +205,7 @@ Puedes agregar un porcentaje de ganancia a tus cotizaciones.
 
     // Comando de productos
     async handleProductos(args, contact) {
-        const clientType = this.getClientType(contact);
+        const clientType = await this.getClientType(contact);
         const stats = await this.productManager.getStats();
 
         return `🛍️ *Catálogo de Productos* *v${process.env.CATALOG_VERSION || '1.0'}*
@@ -348,7 +259,7 @@ Para buscar productos, escribe:
 /buscar wifi`;
         }
 
-        const clientType = this.getClientType(contact);
+        const clientType = await this.getClientType(contact);
         const searchTerm = args.join(' ');
 
         // Función para normalizar texto (eliminar acentos y convertir a minúsculas)
@@ -395,7 +306,7 @@ No se encontraron productos que coincidan con tu búsqueda.
 
     // Manejador para cotizaciones de múltiples productos (puede recibir un tipo de cliente forzado)
     async _handleMultiProductQuote(args, contact, clientTypeOverride = null) {
-        const clientType = clientTypeOverride || this.getClientType(contact);
+        const clientType = clientTypeOverride || (await this.getClientType(contact));
         let commissionMultiplier = 1.0;
         let processedArgs = [...args]; // Trabajar sobre una copia para no modificar el original directamente
 
@@ -556,7 +467,7 @@ No se encontraron productos que coincidan con tu búsqueda.
 
         // Incrementar el contador de cotizaciones si se encontró al menos un producto
         if (items.length > 0 && foundAny) {
-            this._incrementQuoteCount('codigoQuotes');
+            await this._incrementQuoteCount('codigoQuotes');
         }
 
         return response;
@@ -564,7 +475,7 @@ No se encontraron productos que coincidan con tu búsqueda.
 
     // Manejador para cotizaciones de múltiples productos en divisas (sin multiplicador, puede recibir un tipo de cliente forzado)
     async _handleMultiDivisaQuote(args, contact, clientTypeOverride = null) {
-        const clientType = clientTypeOverride || this.getClientType(contact);
+        const clientType = clientTypeOverride || (await this.getClientType(contact));
         let commissionMultiplier = 1.0;
         let processedArgs = [...args]; // Trabajar sobre una copia
 
@@ -701,7 +612,7 @@ No se encontraron productos que coincidan con tu búsqueda.
 
         // Incrementar el contador de cotizaciones si se encontró al menos un producto
         if (items.length > 0 && foundAny) {
-            this._incrementQuoteCount('divisasQuotes');
+            await this._incrementQuoteCount('divisasQuotes');
         }
 
         return response;
@@ -779,7 +690,7 @@ Si no se indica la cantidad, se asume que es 1.`;
 
     // Comando de precios
     async handleCodigoInfo(args, contact) {
-        const clientType = this.getClientType(contact);
+        const clientType = await this.getClientType(contact);
 
         return `💰 *Información de Precios*
 
@@ -794,7 +705,8 @@ Si no se indica la cantidad, se asume que es 1.`;
     // --- Flujo de Aprobación para Cambio de Tipo de Cliente ---
 
     async _requestClientTypeChange(contact, requestedType) {
-        if (this.vendedores.size === 0) {
+        const vendedores = await this.botDataSource.getAllVendors();
+        if (vendedores.size === 0) {
             return `❌ No hay vendedores configurados para aprobar tu solicitud. Por favor, contacta a soporte.`;
         }
 
@@ -814,7 +726,7 @@ Si no se indica la cantidad, se asume que es 1.`;
         const rejectCommand = `/rechazar ${clientNumber}`;
 
         // Enviar solicitud a todos los vendedores
-        for (const [vendedorName, vendedorNumber] of this.vendedores.entries()) {
+        for (const [vendedorName, vendedorNumber] of vendedores.entries()) {
             try {
                 const chatId = `${vendedorNumber}@c.us`;
                 // Enviar mensajes por separado para facilitar el copiado y pegado
@@ -853,7 +765,7 @@ Te notificaremos tan pronto como sea procesada.`;
     }
 
     async handleAprobar(args, contact) {
-        if (!this.isVendedor(contact)) {
+            if (!(await this.isVendedor(contact))) {
             return `❌ Este comando solo puede ser usado por vendedores autorizados.`;
         }
 
@@ -869,8 +781,7 @@ Te notificaremos tan pronto como sea procesada.`;
             return `⚠️ No hay una solicitud pendiente para el cliente ${clientNumber}, o ya fue procesada.`;
         }
 
-        this.clientStates.set(clientNumber, newType);
-        this._saveClientStates();
+        await this.setClientType(clientNumber, newType);
         this.pendingApprovals.delete(clientNumber); // Eliminar la solicitud pendiente
 
         const confirmationToClient = `🎉 ¡Tu solicitud ha sido aprobada! 🎉\n\nAhora tienes acceso a los precios de *${newType.toUpperCase()}*.`;
@@ -880,7 +791,7 @@ Te notificaremos tan pronto como sea procesada.`;
     }
 
     async handleRechazar(args, contact) {
-        if (!this.isVendedor(contact)) {
+            if (!(await this.isVendedor(contact))) {
             return `❌ Este comando solo puede ser usado por vendedores autorizados.`;
         }
 
@@ -906,6 +817,7 @@ Te notificaremos tan pronto como sea procesada.`;
     // Comando de estadísticas
     async handleStats(args, contact) {
         const stats = await this.productManager.getStats();
+        const botStats = await this.botDataSource.getStats();
 
         return `📊 *Estadísticas del Sistema*
 
@@ -913,10 +825,10 @@ Te notificaremos tan pronto como sea procesada.`;
 • Total de productos: ${stats.totalProductos}
 • Categorías disponibles: ${stats.categorias}
 *Cotizaciones:*
-• Total de cotizaciones: ${this.botStats.totalQuotes || 0}
-  - Vía /precios: ${this.botStats.codigoQuotes || 0}
-  - Vía /divisas: ${this.botStats.divisasQuotes || 0}
-• Registros en historial: ${this.botStats.quoteHistory ? this.botStats.quoteHistory.length : 0}
+• Total de cotizaciones: ${botStats.totalQuotes || 0}
+  - Vía /precios: ${botStats.codigoQuotes || 0}
+  - Vía /divisas: ${botStats.divisasQuotes || 0}
+• Registros en historial: ${botStats.quoteHistory ? botStats.quoteHistory.length : 0}
 
 *Configuración:*
 • Multiplicador de precios: ${stats.multiplicadorPrecio}x
@@ -929,7 +841,7 @@ Te notificaremos tan pronto como sea procesada.`;
 
     // Comando de divisas (precio sin multiplicador)
     async handleDivisas(args, contact) {
-        const clientType = this.getClientType(contact);
+        const clientType = await this.getClientType(contact);
 
         // Restringir acceso a tiendas e instaladores
         if (clientType !== this.clientTypes.TIENDA && clientType !== this.clientTypes.INSTALADOR) {
@@ -946,13 +858,15 @@ Te notificaremos tan pronto como sea procesada.`;
 
     // Comando para enviar cotización a un vendedor
     async handleEnviar(args, contact) {
+        const vendedores = await this.botDataSource.getAllVendors();
+
         if (args.length === 0) {
-            const vendedoresDisponibles = Array.from(this.vendedores.keys()).join(', ');
+            const vendedoresDisponibles = Array.from(vendedores.keys()).join(', ');
             return `Para enviar tu última cotización a un vendedor, escribe:\n/enviar *Nombre del Vendedor*\n\nVendedores disponibles: ${vendedoresDisponibles || 'Ninguno configurado'}`;
         }
 
         const vendedorName = args[0].toLowerCase();
-        const vendedorNumber = this.vendedores.get(vendedorName);
+        const vendedorNumber = vendedores.get(vendedorName);
 
         if (!vendedorNumber) {
             return `❌ Vendedor "${vendedorName}" no encontrado.`;
@@ -964,7 +878,7 @@ Te notificaremos tan pronto como sea procesada.`;
             return `📝 No tienes una cotización reciente para enviar. Por favor, genera una cotización primero con el comando /precio.`;
         }
 
-        const clientType = this.getClientType(contact);
+        const clientType = await this.getClientType(contact);
 
         const messageToVendedor = `*Nueva Cotización Solicitada*\n\n*Cliente:* ${contact.pushname || contact.number}\n*Número:* ${contact.number}\n*Tipo de Cliente:* ${clientType.toUpperCase()}\n\n-----------------------------------\n${lastQuote}`;
 
@@ -1109,7 +1023,7 @@ Te notificaremos tan pronto como sea procesada.`;
     // Comando para actualizar manualmente las tasas del BCV
     async handleActualizarBcv(args, contact) {
         // 1. Seguridad: Solo vendedores pueden usar esto
-        if (!this.isVendedor(contact)) {
+            if (!(await this.isVendedor(contact))) {
             return `❌ *Acceso Denegado*\nEste comando es exclusivo para vendedores autorizados.`;
         }
 
@@ -1132,7 +1046,7 @@ Te notificaremos tan pronto como sea procesada.`;
 
         // 5. Ejecución
         try {
-            setManualRates(nuevoDolar, nuevoEuro);
+            await setManualRates(nuevoDolar, nuevoEuro);
             
             const fecha = new Date().toLocaleString('es-VE', { timeZone: 'America/Caracas' });
             
@@ -1153,9 +1067,8 @@ Te notificaremos tan pronto como sea procesada.`;
     }
 
     // Public method to set client type and save it
-    setClientType(contactNumber, type) {
-        this.clientStates.set(contactNumber, type);
-        this._saveClientStates();
+    async setClientType(contactNumber, type) {
+        await this.botDataSource.setClientType(contactNumber, type);
         console.log(`Tipo de cliente para ${contactNumber} establecido a ${type} y guardado.`);
     }
 }

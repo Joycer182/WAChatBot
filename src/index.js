@@ -12,6 +12,8 @@ import { fileURLToPath } from 'url';
 import config from './config.js';
 import ProductManager from './productManager.js';
 import SqliteProductDataSource from './dataSources/SqliteProductDataSource.js';
+import SqliteBotDataSource from './dataSources/SqliteBotDataSource.js';
+import { initBcvCache } from './bcvScraper.js';
 import CommandManager from './commandManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,6 +84,7 @@ const sentMessagesToVendors = new Set(); // Para ignorar mensajes enviados a ven
 // Inicializar gestor de comandos
 let productManager;
 let productDataSource;
+let botDataSource;
 let commandManager;
 
 // Función para generar logs
@@ -101,33 +104,20 @@ function logMessage(message, type = 'info') {
 }
 
 // Función para guardar conversaciones
-function saveConversation(contact, message, isFromBot = false) {
+async function saveConversation(contact, message, isFromBot = false) {
     // Respetar la configuración global para guardar conversaciones
     if (!config.bot.logConversations) return;
+    if (!botDataSource) return;
 
     const timestamp = new Date().toISOString();
-    const conversationEntry = {
-        timestamp,
-        contact: contact.pushname || contact.number, // Usar pushname para consistencia
-        message: message.body,
-        isFromBot,
-        messageType: message.type
-    };
-
-    const conversationsDir = path.join(__dirname, 'data', 'conversations');
-    if (!fs.existsSync(conversationsDir)) {
-        fs.mkdirSync(conversationsDir);
-    }
-
-    const conversationFile = path.join(conversationsDir, `${contact.number.replace('+', '')}.json`);
-
-    let conversations = [];
-    if (fs.existsSync(conversationFile)) {
-        conversations = JSON.parse(fs.readFileSync(conversationFile, 'utf8'));
-    }
-
-    conversations.push(conversationEntry);
-    fs.writeFileSync(conversationFile, JSON.stringify(conversations, null, 2));
+    await botDataSource.saveConversation({
+        telefono: contact.number.replace('+', ''),
+        contacto: contact.pushname || contact.number, // Usar pushname para consistencia
+        mensaje: message.body,
+        esDelBot: isFromBot,
+        tipoMensaje: message.type,
+        timestamp
+    });
 }
 
 // Función para respuestas automáticas inteligentes
@@ -332,7 +322,7 @@ client.on('message', async (message) => {
         const mappings = await client.getContactLidAndPhone([message.from]);
         const realNumber = (mappings?.[0]?.pn ?? '').split('@')[0] || contact.number;
 
-        // Sobrescribir contact.number para que toda la lógica (clientStates,
+        // Sobrescribir contact.number para que toda la lógica (clientes,
         // vendedores, conversaciones) use la misma clave: el teléfono real.
         contact.number = realNumber;
 
@@ -341,19 +331,19 @@ client.on('message', async (message) => {
         logMessage(`Mensaje recibido de ${contact.pushname || contact.number}: ${message.body}`);
 
         // --- NUEVA LÓGICA: Mensaje de bienvenida para nuevos clientes ---
-        const isNewClient = !commandManager.clientStates.has(contact.number);
+        const isNewClient = !(await commandManager.hasClient(contact.number));
         if (isNewClient) {
             const welcomeMessage = config.mensajes.saludo.replace('cliente', contact.pushname || 'cliente');
             await sendMessageSafe(message.from, welcomeMessage);
             logMessage(`Mensaje de bienvenida enviado a nuevo cliente: ${contact.pushname || contact.number}`);
 
             // Establecer el tipo de cliente por defecto y guardarlo usando el nuevo método
-            commandManager.setClientType(contact.number, config.productos.defaultClientType);
+            await commandManager.setClientType(contact.number, config.productos.defaultClientType);
         }
         // --- FIN NUEVA LÓGICA ---
 
         // Guardar conversación
-        saveConversation(contact, message, false);
+        await saveConversation(contact, message, false);
 
         let response;
 
@@ -405,7 +395,7 @@ client.on('message', async (message) => {
             body: botMessageBody,
             type: 'text'
         };
-        saveConversation(contact, botMessage, true);
+        await saveConversation(contact, botMessage, true);
 
     } catch (error) {
         console.error('Error procesando mensaje:', error);
@@ -501,33 +491,31 @@ async function main() {
         }
     }
 
-    // Verificar y crear vendedores.json si no existe
-    const vendedoresFilePath = path.join(__dirname, 'data', 'vendedores.json');
-    if (!fs.existsSync(vendedoresFilePath)) {
-        console.log('📝 Creando archivo vendedores.json...');
-        fs.writeFileSync(vendedoresFilePath, '{}', 'utf8');
-        logMessage('Archivo vendedores.json creado.');
-    }
-
-
     // 1. Inicializar la fuente de datos (SQLite) y el ProductManager
     productDataSource = new SqliteProductDataSource(config.productos.dbFilePath);
     productManager = new ProductManager(config, productDataSource);
 
-    // 2. Conectar la base de datos
+    // 2. Conectar la base de datos de productos
     await productManager.loadProducts();
 
-    // 3. Inicializar CommandManager, pasándole la instancia de productManager y la ruta del archivo de vendedores
-    commandManager = new CommandManager(productManager, client, vendedoresFilePath);
+    // 3. Inicializar la base de datos operativa del bot (clientes, vendedores, conversaciones, bcv, stats)
+    botDataSource = new SqliteBotDataSource(config.database.dbFilePath);
+    await botDataSource.initialize();
 
-    // 4. Iniciar el servidor Express
+    // 4. Inicializar el caché del BCV usando la misma fuente de datos
+    await initBcvCache(botDataSource);
+
+    // 5. Inicializar CommandManager, pasándole productManager y la fuente de datos del bot
+    commandManager = new CommandManager(productManager, client, botDataSource);
+
+    // 6. Iniciar el servidor Express
     app.listen(PORT, () => {
         console.log(`\n🚀 Servidor iniciado en puerto ${PORT}`);
         console.log(`📊 Panel de estado: http://localhost:${PORT}/status`);
         logMessage(`Servidor iniciado en puerto ${PORT}`);
     });
 
-    // 5. Inicializar el cliente de WhatsApp con reintentos (TargetCloseError es frecuente al arrancar Chrome)
+    // 7. Inicializar el cliente de WhatsApp con reintentos (TargetCloseError es frecuente al arrancar Chrome)
     const maxAttempts = 3;
     const delayMs = 5000;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -561,6 +549,7 @@ const handleShutdown = async (signal) => {
         if (client) await client.destroy();
         console.log('Cliente de WhatsApp desconectado.');
         if (productDataSource) await productDataSource.close();
+        if (botDataSource) await botDataSource.close();
         process.exit(0);
     } catch (error) {
         console.error('Error durante el cierre:', error);
