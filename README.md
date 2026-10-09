@@ -1,10 +1,10 @@
 # 🤖 Bot de WhatsApp para Atención al Cliente
 
-Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención al cliente, gestionar consultas de productos y ofrecer precios diferenciados, todo integrado con una base de datos de productos en Excel.
+Un chatbot de WhatsApp robusto y modular diseñado para automatizar la atención al cliente, gestionar consultas de productos y ofrecer precios diferenciados, todo integrado con una base de datos de productos en SQLite.
 
 ## ✨ Características
 
-- **Integración con Excel**: Lee productos directamente desde archivo `TablaProductos.xlsx`
+- **Integración con SQLite**: Consulta productos directamente desde la base de datos `LocalJose.db` mediante el patrón repositorio (fácil de migrar a una API REST)
 - **Consulta Robusta de Tasa de Cambio (BCV)**: Sistema de caché inteligente y persistente para las tasas del BCV. La lógica de actualización garantiza tener siempre la tasa más reciente:
   - **Actualización Diaria Asegurada**: Si la tasa en caché es de un día anterior, se actualiza automáticamente.
   - **Captura Agresiva**: Durante la ventana de publicación del BCV (3-6 PM VET), el bot consulta constantemente para obtener la nueva tasa apenas esté disponible.
@@ -46,21 +46,18 @@ cp env.example .env
 # Edita el archivo .env con tu información
 ```
 
-### 3. Configurar Archivo Excel
-```bash
-# Si no tienes un archivo de productos, puedes generar uno de ejemplo (opcional):
-# node create-sample-excel.js 
-# (Nota: este script no está incluido en el proyecto base, es un ejemplo de uso)
-# O coloca tu propio archivo TablaProductos.xlsx en la raíz del proyecto
-```
+### 3. Configurar la Base de Datos SQLite
+Coloca tu base de datos `LocalJose.db` en `src/data/LocalJose.db` (o indica su ruta con la variable `SQLITE_DB_PATH`).
 
-**Estructura del archivo Excel:**
-- `Codigo`: ID único del producto
-- `Descripcion`: Nombre del producto
-- `Categoria`: Categoría del producto
-- `UsdM`: Precio para tiendas
-- `UsdI`: Precio para instaladores
-- `UsdG`: Precio para clientes generales
+**Esquema esperado:**
+- Tabla `productos`: `codigo`, `descripcion`, `usd_g`, `usd_i`, `usd_m`, `id_categoria`, `descontinuado`
+- Tabla `categorias`: `id`, `nombre`
+
+El bot hace un `INNER JOIN` entre `productos` y `categorias` (por `id_categoria = id`) y
+excluye los productos con `descontinuado = 1`. Mapeo de precios:
+- `usd_m` → Precio para tiendas
+- `usd_i` → Precio para instaladores
+- `usd_g` → Precio para clientes generales
 
 ### 4. Configurar Vendedores (Opcional)
 Para utilizar el comando `/enviar`, es necesario crear un archivo `vendedores.json` en la carpeta `src/data/`. Este archivo contiene los alias y números de WhatsApp de los vendedores a quienes se les pueden enviar las cotizaciones.
@@ -86,6 +83,7 @@ EMPRESA_DIRECCION=Mi dirección comercial
 
 # Configuración de precios
 PRICE_MULTIPLIER=1.0  # Multiplicador global de precios
+SQLITE_DB_PATH=src/data/LocalJose.db  # Ruta de la base de datos SQLite
 DEFAULT_CLIENT_TYPE=general
 CLIENT_TYPE_GENERAL=general
 CLIENT_TYPE_TIENDA=tienda
@@ -212,9 +210,13 @@ WSChatBot/
 ├── src/
 │   ├── index.js            # Archivo principal del bot
 │   ├── commandManager.js     # Gestiona todos los comandos y su lógica
-│   ├── productManager.js     # Gestiona la carga y búsqueda de productos desde Excel
+│   ├── productManager.js     # Capa de servicio/fachada para los productos
+│   ├── dataSources/          # Fuentes de datos (patrón repositorio)
+│   │   ├── ProductDataSource.js      # Interfaz abstracta del repositorio
+│   │   └── SqliteProductDataSource.js # Implementación con better-sqlite3
 │   ├── config.js             # Configuración centralizada y textos del bot
 │   └── data/                 # Carpeta para todos los datos generados y persistentes
+│       ├── LocalJose.db      # Base de datos SQLite de productos
 │       ├── conversations/    # Conversaciones guardadas
 │       ├── logs/             # Logs del sistema
 │       ├── product_images/   # Imágenes de los productos (ej. 11050.jpg)
@@ -224,6 +226,8 @@ WSChatBot/
 ├── .env                    # Variables de entorno
 ├── env.example             # Ejemplo de configuración
 ├── package.json            # Dependencias y scripts
+├── scripts/                # Scripts de utilidad
+│   └── test-db.js          # Smoke test de la base de datos SQLite
 └── README.md               # Este archivo
 ```
 
@@ -307,7 +311,7 @@ node src/utils.js clear-session
 ## 📈 Próximas Mejoras
 
 - [x] Persistencia de datos de cliente (tipo de cliente)
-- [ ] Integración con base de datos (SQLite, etc.) para productos y clientes
+- [x] Integración con base de datos (SQLite) para productos
 - [ ] Respuestas con IA/ML
 - [ ] Integración con CRM
 - [ ] Soporte para multimedia

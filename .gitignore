@@ -23,6 +23,7 @@ src/data/product_images/*
 
 # Ignorar archivos de datos específicos en la carpeta data
 src/data/TablaProductos.xlsx
+src/data/LocalJose.db
 src/data/bcv_cache.json
 src/data/bot_stats.json
 src/data/client_data.json

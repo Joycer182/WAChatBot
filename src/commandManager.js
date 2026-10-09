@@ -295,7 +295,7 @@ Puedes agregar un porcentaje de ganancia a tus cotizaciones.
     // Comando de productos
     async handleProductos(args, contact) {
         const clientType = this.getClientType(contact);
-        const stats = this.productManager.getStats();
+        const stats = await this.productManager.getStats();
 
         return `🛍️ *Catálogo de Productos* *v${process.env.CATALOG_VERSION || '1.0'}*
 
@@ -311,7 +311,7 @@ Puedes agregar un porcentaje de ganancia a tus cotizaciones.
 
     // Comando de categorías
     async handleCategorias(args, contact) {
-        const categories = this.productManager.getCategories();
+        const categories = await this.productManager.getCategories();
 
         if (categories.length === 0) {
             return `📂 *Categorías de Productos*
@@ -356,7 +356,7 @@ Para buscar productos, escribe:
 
         // Búsqueda mejorada: permite palabras en cualquier orden
         const searchTerms = args.filter(arg => arg.trim() !== '').map(term => normalizeText(term));
-        const allProducts = this.productManager.getAllProductsForClient(clientType);
+        const allProducts = await this.productManager.getAllProductsForClient(clientType);
 
         const results = allProducts.filter(product => {
             const textToSearch = normalizeText(`${product.codigo} ${product.descripcion}`);
@@ -434,7 +434,7 @@ No se encontraron productos que coincidan con tu búsqueda.
             let quantity = 1;
 
             // --- Validación de existencia del producto ---
-            if (!this.productManager.getProductByCode(code)) {
+            if (!(await this.productManager.getProductByCode(code))) {
                 invalidFormatItems.push(`"${code}" (código de producto no válido)`);
                 i++;
                 continue;
@@ -494,12 +494,14 @@ No se encontraron productos que coincidan con tu búsqueda.
         let grandTotal = 0;
         let notFoundItems = [];
         let totalPiezas = 0;
+        let foundAny = false;
 
         const { dolar, updateFailed, lastUpdated } = await getBcvRates(); // Obtener dolar al principio
 
         for (const item of items) {
-            const product = this.productManager.getProductByCode(item.code);
+            const product = await this.productManager.getProductByCode(item.code);
             if (product) {
+                foundAny = true;
                 const baseUnitPrice = this.productManager.getRawPrice(product, clientType);
                 const finalUnitPrice = baseUnitPrice * commissionMultiplier; // Aplicar comisión
                 const subTotal = finalUnitPrice * item.quantity;
@@ -553,7 +555,7 @@ No se encontraron productos que coincidan con tu búsqueda.
         this.lastQuote.set(contact.number, response);
 
         // Incrementar el contador de cotizaciones si se encontró al menos un producto
-        if (items.length > 0 && items.some(item => this.productManager.getProductByCode(item.code))) {
+        if (items.length > 0 && foundAny) {
             this._incrementQuoteCount('codigoQuotes');
         }
 
@@ -600,7 +602,7 @@ No se encontraron productos que coincidan con tu búsqueda.
             let quantity = 1;
 
             // --- Validación de existencia del producto ---
-            if (!this.productManager.getProductByCode(code)) {
+            if (!(await this.productManager.getProductByCode(code))) {
                 invalidFormatItems.push(`"${code}" (código de producto no válido)`);
                 i++;
                 continue;
@@ -656,10 +658,12 @@ No se encontraron productos que coincidan con tu búsqueda.
         let grandTotal = 0;
         let notFoundItems = [];
         let totalPiezas = 0;
+        let foundAny = false;
 
         for (const item of items) {
-            const product = this.productManager.getProductByCode(item.code);
+            const product = await this.productManager.getProductByCode(item.code);
             if (product) {
+                foundAny = true;
                 const baseUnitPrice = this.productManager.getBasePrice(product, clientType);
                 const finalUnitPrice = baseUnitPrice * commissionMultiplier; // Aplicar comisión
                 const subTotal = finalUnitPrice * item.quantity;
@@ -696,7 +700,7 @@ No se encontraron productos que coincidan con tu búsqueda.
         this.lastQuote.set(contact.number, response);
 
         // Incrementar el contador de cotizaciones si se encontró al menos un producto
-        if (items.length > 0 && items.some(item => this.productManager.getProductByCode(item.code))) {
+        if (items.length > 0 && foundAny) {
             this._incrementQuoteCount('divisasQuotes');
         }
 
@@ -776,7 +780,6 @@ Si no se indica la cantidad, se asume que es 1.`;
     // Comando de precios
     async handleCodigoInfo(args, contact) {
         const clientType = this.getClientType(contact);
-        const stats = this.productManager.getStats();
 
         return `💰 *Información de Precios*
 
@@ -902,7 +905,7 @@ Te notificaremos tan pronto como sea procesada.`;
 
     // Comando de estadísticas
     async handleStats(args, contact) {
-        const stats = this.productManager.getStats();
+        const stats = await this.productManager.getStats();
 
         return `📊 *Estadísticas del Sistema*
 
@@ -917,11 +920,9 @@ Te notificaremos tan pronto como sea procesada.`;
 
 *Configuración:*
 • Multiplicador de precios: ${stats.multiplicadorPrecio}x
-• Última actualización: ${stats.ultimaActualizacion ? stats.ultimaActualizacion.toLocaleString() : 'N/A'}
 
-*Archivo Excel:*
-• Ruta: ${stats.archivoExcel}
-• Estado: ${stats.ultimaActualizacion ? 'Actualizado' : 'No disponible'}
+*Base de datos:*
+• Ruta: ${stats.dbPath}
 
 *Comandos registrados:* ${this.commands.size}`;
     }
@@ -989,7 +990,7 @@ Te notificaremos tan pronto como sea procesada.`;
         }
 
         const codigo = args[0];
-        const product = this.productManager.getProductByCode(codigo);
+        const product = await this.productManager.getProductByCode(codigo);
 
         if (!product) {
             return `❌ Producto con código "${codigo}" no encontrado.`;

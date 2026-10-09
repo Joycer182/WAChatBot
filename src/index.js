@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import config from './config.js';
 import ProductManager from './productManager.js';
+import SqliteProductDataSource from './dataSources/SqliteProductDataSource.js';
 import CommandManager from './commandManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -80,6 +81,7 @@ const sentMessagesToVendors = new Set(); // Para ignorar mensajes enviados a ven
 
 // Inicializar gestor de comandos
 let productManager;
+let productDataSource;
 let commandManager;
 
 // Función para generar logs
@@ -450,23 +452,25 @@ app.get('/qr', (req, res) => {
     `);
 });
 
-app.get('/products', (req, res) => {
+app.get('/products', async (req, res) => {
     try {
-        const stats = productManager.getStats();
+        const stats = await productManager.getStats();
+        const products = await productManager.getAllProductsForClient('general');
+        const categories = await productManager.getCategories();
         res.json({
             stats: stats,
-            products: productManager.getAllProductsForClient('general').slice(0, 50), // Limitar a 50 productos
-            categories: productManager.getCategories()
+            products: products.slice(0, 50), // Limitar a 50 productos
+            categories: categories
         });
     } catch (error) {
         res.status(500).json({ error: 'Error obteniendo productos' });
     }
 });
 
-app.get('/products/search/:query', (req, res) => {
+app.get('/products/search/:query', async (req, res) => {
     try {
         const query = req.params.query;
-        const results = productManager.searchProducts(query);
+        const results = await productManager.searchProducts(query);
         res.json({
             query: query,
             results: results.slice(0, 20), // Limitar a 20 resultados
@@ -506,10 +510,11 @@ async function main() {
     }
 
 
-    // 1. Inicializar ProductManager con la configuración
-    productManager = new ProductManager(config);
+    // 1. Inicializar la fuente de datos (SQLite) y el ProductManager
+    productDataSource = new SqliteProductDataSource(config.productos.dbFilePath);
+    productManager = new ProductManager(config, productDataSource);
 
-    // 2. Cargar productos desde Excel
+    // 2. Conectar la base de datos
     await productManager.loadProducts();
 
     // 3. Inicializar CommandManager, pasándole la instancia de productManager y la ruta del archivo de vendedores
@@ -555,6 +560,7 @@ const handleShutdown = async (signal) => {
     try {
         if (client) await client.destroy();
         console.log('Cliente de WhatsApp desconectado.');
+        if (productDataSource) await productDataSource.close();
         process.exit(0);
     } catch (error) {
         console.error('Error durante el cierre:', error);
