@@ -33,6 +33,17 @@ class BotDataSource {
         throw new Error('Método getAllClients() no implementado en la fuente de datos.');
     }
 
+    // --- Caché LID → teléfono ---
+    // Devuelve el teléfono asociado a un LID, o null si no está cacheado.
+    async getLidMapping(lid) {
+        throw new Error('Método getLidMapping() no implementado en la fuente de datos.');
+    }
+
+    // Guarda/actualiza el mapeo LID → teléfono.
+    async setLidMapping(lid, telefono) {
+        throw new Error('Método setLidMapping() no implementado en la fuente de datos.');
+    }
+
     // --- Vendedores ---
     // Devuelve todos los vendedores: Map<alias, telefono>.
     async getAllVendors() {
@@ -91,6 +102,12 @@ class BotDataSource {
     // Incrementa el contador de cotizaciones y registra en el historial.
     async incrementQuote(type) {
         throw new Error('Método incrementQuote() no implementado en la fuente de datos.');
+    }
+
+    // Elimina (o cuenta, si dryRun) las filas indexadas por un LID viejo.
+    // Devuelve { clientes, vendedores, conversaciones }.
+    async cleanLidData({ dryRun = true } = {}) {
+        throw new Error('Método cleanLidData() no implementado en la fuente de datos.');
     }
 
     // Cierra la conexión con la fuente de datos.

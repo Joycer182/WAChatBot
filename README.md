@@ -256,15 +256,18 @@ están basados en el **número telefónico real**.
 
 **Solución aplicada:** en el manejador de mensajes de `src/index.js` se resuelve
 el número real con `client.getContactLidAndPhone([message.from])` y se sobrescribe
-`contact.number` con ese valor (`mappings[0].pn`, sin el sufijo `@c.us`). Así toda
-la lógica (tipo de cliente, verificación de vendedor, cotizaciones y logs) usa la
-misma clave: el teléfono real. Si la API no puede resolver el número, se mantiene
-`contact.number` como respaldo.
+`contact.number` con ese valor (normalizado a solo dígitos, conservando el código de
+país que ya viene en `pn`). El mapeo LID → teléfono se cachea en la tabla
+`lid_mappings` de `bot.db` para no depender del rate-limit de Meta en cada mensaje.
+Así toda la lógica (tipo de cliente, verificación de vendedor, cotizaciones y logs)
+usa la misma clave: el teléfono real. Si la API no puede resolver el número, se
+mantiene `contact.number` como respaldo y no se registra al cliente con el LID.
 
-**Nota:** los datos antiguos guardados con LID no se migran automáticamente. Si
-aparecen claves de 15 dígitos (LID) en la tabla `clientes` o filas con teléfono de
-15 dígitos en `conversaciones`, puedes eliminarlos de forma segura; se regenerarán
-con el número correcto cuando el cliente vuelva a escribir.
+**Nota:** los datos antiguos guardados con LID no se migran automáticamente. Puedes
+eliminarlos de forma segura con `node src/utils.js clean-lids` (previsualiza) y
+`node src/utils.js clean-lids --apply` (borra las claves de 15+ dígitos en
+`clientes`, `vendedores` y `conversaciones`). Se regenerarán con el número correcto
+cuando el cliente vuelva a escribir.
 
 ### Bot no responde
 1. Verifica que el bot esté conectado: `GET http://localhost:3000/status`
@@ -293,6 +296,7 @@ Para usarlo, ejecuta `node src/utils.js [comando]`.
 -   `clean [días]`: Limpia los archivos de log más antiguos que el número de días especificado. Por defecto, mantiene los logs de los últimos 7 días.
 -   `export [archivo]`: Exporta todas las conversaciones guardadas (desde `bot.db`) a un único archivo JSON. Por defecto, se guarda en `conversations_export.json`.
 -   `clear-session`: Elimina la carpeta de sesión de WhatsApp (`.wwebjs_auth`). Esto es útil si tienes problemas de autenticación y necesitas escanear el código QR de nuevo.
+-   `clean-lids [--apply]`: Elimina las claves de 15+ dígitos (LIDs viejos) de `clientes`, `vendedores` y `conversaciones`. Sin `--apply` solo previsualiza.
 -   `backup`: Crea una copia de seguridad de `bot.db` y de los logs en una nueva carpeta dentro de `src/backups`.
 -   `help`: Muestra un mensaje de ayuda con todos los comandos disponibles.
 
@@ -310,6 +314,10 @@ node src/utils.js export mis_chats.json
 
 # Forzar un nuevo inicio de sesión
 node src/utils.js clear-session
+
+# Limpiar LIDs viejos (previsualizar y luego borrar)
+node src/utils.js clean-lids
+node src/utils.js clean-lids --apply
 ```
 
 ## 📈 Próximas Mejoras

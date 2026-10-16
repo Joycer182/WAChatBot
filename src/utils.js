@@ -128,6 +128,31 @@ class BotUtils {
         }
     }
 
+    // Limpiar LIDs viejos (claves de 15+ dígitos) de clientes, vendedores y conversaciones
+    async cleanLids(dryRun = true) {
+        const dataSource = await this._connect();
+        if (!dataSource) {
+            console.error('❌ No se pudo conectar con la base de datos del bot.');
+            return;
+        }
+        try {
+            const result = await dataSource.cleanLidData({ dryRun });
+            console.log(`\n🧹 ${dryRun ? 'PREVISUALIZACIÓN' : 'LIMPIEZA'} DE LIDs VIEJOS\n`);
+            console.log(`👥 Clientes (LID):       ${result.clientes}`);
+            console.log(`🛒 Vendedores (LID):     ${result.vendedores}`);
+            console.log(`💬 Conversaciones (LID): ${result.conversaciones}`);
+            if (dryRun) {
+                console.log('\nℹ️  Nada fue borrado. Usa "node src/utils.js clean-lids --apply" para eliminar.');
+            } else {
+                console.log('\n✅ LIDs viejos eliminados.');
+            }
+        } catch (error) {
+            console.error('❌ Error limpiando LIDs:', error.message);
+        } finally {
+            await dataSource.close();
+        }
+    }
+
     // Crear backup
     async createBackup() {
         try {
@@ -170,6 +195,8 @@ Comandos disponibles:
   node src/utils.js export         - Exportar conversaciones
   node src/utils.js export [archivo] - Exportar a archivo específico
   node src/utils.js clear-session  - Limpiar sesión de WhatsApp
+  node src/utils.js clean-lids    - Previsualizar LIDs viejos a limpiar
+  node src/utils.js clean-lids --apply - Eliminar LIDs viejos (15+ dígitos)
   node src/utils.js backup         - Crear backup completo
   node src/utils.js help           - Mostrar esta ayuda
 
@@ -177,6 +204,7 @@ Ejemplos:
   node src/utils.js stats
   node src/utils.js clean 30
   node src/utils.js export mis_conversaciones.json
+  node src/utils.js clean-lids --apply
         `);
     }
 }
@@ -200,6 +228,9 @@ async function run() {
             break;
         case 'clear-session':
             utils.clearSession();
+            break;
+        case 'clean-lids':
+            await utils.cleanLids(process.argv[3] !== '--apply');
             break;
         case 'backup':
             await utils.createBackup();
