@@ -19,6 +19,12 @@ CREATE TABLE IF NOT EXISTS clientes (
     actualizado_en  TEXT
 );
 
+CREATE TABLE IF NOT EXISTS lid_mappings (
+    lid             TEXT PRIMARY KEY,
+    telefono        TEXT NOT NULL,
+    actualizado_en  TEXT
+);
+
 CREATE TABLE IF NOT EXISTS vendedores (
     alias           TEXT PRIMARY KEY,
     telefono        TEXT NOT NULL,
@@ -92,6 +98,14 @@ class SqliteBotDataSource extends BotDataSource {
             this.st.hasClient = this.db.prepare('SELECT 1 AS x FROM clientes WHERE telefono = ?');
             this.st.getAllClients = this.db.prepare('SELECT telefono, tipo_cliente FROM clientes');
 
+            this.st.getLidMapping = this.db.prepare('SELECT telefono FROM lid_mappings WHERE lid = ?');
+            this.st.setLidMapping = this.db.prepare(`
+                INSERT INTO lid_mappings (lid, telefono, actualizado_en) VALUES (?, ?, ?)
+                ON CONFLICT(lid) DO UPDATE SET
+                    telefono = excluded.telefono,
+                    actualizado_en = excluded.actualizado_en
+            `);
+
             this.st.getAllVendors = this.db.prepare('SELECT alias, telefono FROM vendedores');
             this.st.getVendor = this.db.prepare('SELECT telefono FROM vendedores WHERE alias = ?');
             this.st.isVendorPhone = this.db.prepare('SELECT 1 AS x FROM vendedores WHERE telefono = ?');
@@ -112,6 +126,26 @@ class SqliteBotDataSource extends BotDataSource {
                 SELECT COUNT(*) AS totalMensajes, COUNT(DISTINCT telefono) AS contactosUnicos
                 FROM conversaciones
             `);
+
+            // Sentencias de mantenimiento para limpiar LIDs viejos (15+ dígitos).
+            this.st.countLidClients = this.db.prepare(
+                "SELECT COUNT(*) AS c FROM clientes WHERE length(telefono) >= 15 AND telefono NOT GLOB '*[^0-9]*'"
+            );
+            this.st.deleteLidClients = this.db.prepare(
+                "DELETE FROM clientes WHERE length(telefono) >= 15 AND telefono NOT GLOB '*[^0-9]*'"
+            );
+            this.st.countLidVendors = this.db.prepare(
+                "SELECT COUNT(*) AS c FROM vendedores WHERE length(telefono) >= 15 AND telefono NOT GLOB '*[^0-9]*'"
+            );
+            this.st.deleteLidVendors = this.db.prepare(
+                "DELETE FROM vendedores WHERE length(telefono) >= 15 AND telefono NOT GLOB '*[^0-9]*'"
+            );
+            this.st.countLidConversations = this.db.prepare(
+                "SELECT COUNT(*) AS c FROM conversaciones WHERE length(telefono) >= 15 AND telefono NOT GLOB '*[^0-9]*'"
+            );
+            this.st.deleteLidConversations = this.db.prepare(
+                "DELETE FROM conversaciones WHERE length(telefono) >= 15 AND telefono NOT GLOB '*[^0-9]*'"
+            );
 
             this.st.getBcvCache = this.db.prepare('SELECT dolar, euro, last_updated FROM bcv_cache WHERE id = 1');
             this.st.setBcvCache = this.db.prepare(`
@@ -167,6 +201,36 @@ class SqliteBotDataSource extends BotDataSource {
             map.set(row.telefono, row.tipo_cliente);
         }
         return map;
+    }
+
+    // --- Caché LID → teléfono ---
+    async getLidMapping(lid) {
+        if (!this.db) return null;
+        const row = this.st.getLidMapping.get(lid);
+        return row ? row.telefono : null;
+    }
+
+    async setLidMapping(lid, telefono) {
+        if (!this.db) return;
+        this.st.setLidMapping.run(lid, telefono, new Date().toISOString());
+    }
+
+    // --- Mantenimiento: limpieza de LIDs viejos ---
+    // Elimina (o solo cuenta, si dryRun) las filas indexadas por un LID
+    // (15+ dígitos) en clientes, vendedores y conversaciones.
+    async cleanLidData({ dryRun = true } = {}) {
+        if (!this.db) return { clientes: 0, vendedores: 0, conversaciones: 0 };
+        const result = {
+            clientes: this.st.countLidClients.get().c,
+            vendedores: this.st.countLidVendors.get().c,
+            conversaciones: this.st.countLidConversations.get().c
+        };
+        if (!dryRun) {
+            this.st.deleteLidClients.run();
+            this.st.deleteLidVendors.run();
+            this.st.deleteLidConversations.run();
+        }
+        return result;
     }
 
     // --- Vendedores ---

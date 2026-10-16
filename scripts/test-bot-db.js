@@ -44,6 +44,11 @@ async function main() {
         const clients = await ds.getAllClients();
         check('getAllClients devuelve los clientes', clients.size === 2, `size=${clients.size}`);
 
+        // --- Caché LID → teléfono ---
+        check('getLidMapping inexistente → null', (await ds.getLidMapping('111111111111111')) === null);
+        await ds.setLidMapping('111111111111111', '584120000000');
+        check('setLidMapping + getLidMapping', (await ds.getLidMapping('111111111111111')) === '584120000000');
+
         // --- Vendedores (solo lectura, tabla vacía) ---
         const vendors = await ds.getAllVendors();
         check('getAllVendors devuelve mapa vacío', vendors instanceof Map && vendors.size === 0);
@@ -82,6 +87,18 @@ async function main() {
             stats.totalQuotes === 3 && stats.codigoQuotes === 2 && stats.divisasQuotes === 1,
             `total=${stats.totalQuotes}, codigo=${stats.codigoQuotes}, divisas=${stats.divisasQuotes}`);
         check('incrementQuote registra historial', stats.quoteHistory.length === 3);
+
+        // --- Limpieza de LIDs viejos ---
+        await ds.setClientType('223226798063761', 'general'); // LID de 15 dígitos en clientes
+        await ds.saveConversation({
+            telefono: '223226798063761', contacto: 'LID', mensaje: 'hola',
+            esDelBot: false, tipoMensaje: 'chat', timestamp: new Date().toISOString()
+        });
+        const preview = await ds.cleanLidData({ dryRun: true });
+        check('cleanLidData dryRun cuenta LIDs', preview.clientes === 1 && preview.conversaciones === 1, JSON.stringify(preview));
+        const applied = await ds.cleanLidData({ dryRun: false });
+        check('cleanLidData elimina LIDs', applied.clientes === 1 && applied.conversaciones === 1, JSON.stringify(applied));
+        check('hasClient del LID eliminado es falso', (await ds.hasClient('223226798063761')) === false);
     } finally {
         await ds.close();
         // Limpiar la base temporal

@@ -260,6 +260,51 @@ async function sendMessageSafe(chatId, content, options = {}) {
     }
 }
 
+// Normaliza un número/id de WhatsApp a solo dígitos. Conserva el código de país
+// que ya viene en pn (no se fuerza ningún prefijo, porque hay clientes de otros países).
+function normalizePhone(value) {
+    return String(value ?? '').split('@')[0].replace(/\D/g, '');
+}
+
+// Un LID de WhatsApp es un identificador de 15+ dígitos. Los teléfonos reales
+// (con código de país) tienen normalmente entre 10 y 14 dígitos.
+function isLikelyPhone(value) {
+    const digits = normalizePhone(value);
+    return digits.length >= 10 && digits.length < 15;
+}
+
+// Resuelve el teléfono real a partir de message.from/contact, usando la caché
+// LID → teléfono de bot.db para no depender del rate-limit de Meta en cada mensaje.
+async function resolveRealNumber(message, contact) {
+    const from = message.from || '';
+    const lid = from.endsWith('@lid') ? from.split('@')[0] : null;
+
+    // 1) Caché LID → teléfono.
+    if (lid && botDataSource) {
+        const cached = await botDataSource.getLidMapping(lid);
+        if (cached) return cached;
+    }
+
+    // 2) Resolver vía la API de WhatsApp (puede fallar por rate-limit).
+    if (lid) {
+        try {
+            const mappings = await client.getContactLidAndPhone([from]);
+            const resolved = normalizePhone(mappings?.[0]?.pn);
+            if (resolved) {
+                if (botDataSource) {
+                    await botDataSource.setLidMapping(lid, resolved);
+                }
+                return resolved;
+            }
+        } catch (error) {
+            logMessage(`No se pudo resolver el LID ${lid}: ${error.message}`, 'warn');
+        }
+    }
+
+    // 3) Respaldo: contact.number, o el propio from si ya es un c.us válido.
+    return normalizePhone(contact.number) || (from.includes('@c.us') ? normalizePhone(from) : '');
+}
+
 // Manejo de mensajes
 client.on('message', async (message) => {
     // Ignorar mensajes de estado
@@ -318,20 +363,19 @@ client.on('message', async (message) => {
 
         const contact = await message.getContact();
 
-        // Obtener el número real (pn) aunque WhatsApp entregue un LID por privacidad.
-        const mappings = await client.getContactLidAndPhone([message.from]);
-        const realNumber = (mappings?.[0]?.pn ?? '').split('@')[0] || contact.number;
+        // Resolver el número real (pn) aunque WhatsApp entregue un LID por privacidad.
+        // Se usa la caché LID → teléfono de bot.db y se normaliza a solo dígitos.
+        contact.number = await resolveRealNumber(message, contact);
 
-        // Sobrescribir contact.number para que toda la lógica (clientes,
-        // vendedores, conversaciones) use la misma clave: el teléfono real.
-        contact.number = realNumber;
-
-        console.log(`Número real: ${realNumber} | ID recibido: ${message.from}`);
+        logMessage(`Número real: ${contact.number} | ID recibido: ${message.from}`);
 
         logMessage(`Mensaje recibido de ${contact.pushname || contact.number}: ${message.body}`);
 
         // --- NUEVA LÓGICA: Mensaje de bienvenida para nuevos clientes ---
-        const isNewClient = !(await commandManager.hasClient(contact.number));
+        // Solo se registra/envía bienvenida si se pudo resolver un teléfono real
+        // (no un LID de 15 dígitos), evitando crear entradas basura en clientes.
+        const hasRealPhone = isLikelyPhone(contact.number);
+        const isNewClient = hasRealPhone && !(await commandManager.hasClient(contact.number));
         if (isNewClient) {
             const welcomeMessage = config.mensajes.saludo.replace('cliente', contact.pushname || 'cliente');
             await sendMessageSafe(message.from, welcomeMessage);
